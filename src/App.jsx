@@ -36,6 +36,34 @@ const PAINT_PALETTE = [
   "#c8bfe7", "#b97a57", "#ffffff", "#c3c3c3",
 ];
 
+/* ---------- store pricing ----------
+   points = price × 2  ×  desire factor  ×  reliability factor
+   desire 1..5      → 0.8 .. 1.3   (want it more → it should feel earned)
+   reliability 0..1 → 0.7 .. 1.2   (struggling → gentler price, thriving → full freight)
+------------------------------------ */
+const POINTS_PER_CURRENCY = 2;
+function suggestPoints(price, desire, reliability) {
+  const p = Number(price) || 0;
+  const d = 0.8 + ((Math.min(5, Math.max(1, desire)) - 1) / 4) * 0.5;
+  const r = 0.7 + Math.min(1, Math.max(0, reliability)) * 0.5;
+  const raw = p * POINTS_PER_CURRENCY * d * r;
+  return Math.max(5, Math.round(raw / 5) * 5);
+}
+
+/* ---------- achievements ---------- */
+const ACHIEVEMENTS = [
+  { id: "first_task",    label: "First Task Down",       hint: "Complete your first task",         test: (s) => s.tasksDone >= 1 },
+  { id: "five_in_a_day", label: "Five in a Day",         hint: "Complete 5 tasks",                 test: (s) => s.tasksDone >= 5 },
+  { id: "task_machine",  label: "Task Machine",          hint: "Complete 25 tasks",                test: (s) => s.tasksDone >= 25 },
+  { id: "habit_week",    label: "Week Strong",           hint: "Hit a 7-day habit streak",         test: (s) => s.bestStreak >= 7 },
+  { id: "habit_month",   label: "Unbreakable",           hint: "Hit a 30-day habit streak",        test: (s) => s.bestStreak >= 30 },
+  { id: "first_entry",   label: "Dear Diary",            hint: "Write your first journal entry",   test: (s) => s.entries >= 1 },
+  { id: "journal_10",    label: "Chronicler",            hint: "Write 10 journal entries",         test: (s) => s.entries >= 10 },
+  { id: "first_buy",     label: "Treat Yourself",        hint: "Buy your first reward",            test: (s) => s.purchases >= 1 },
+  { id: "big_saver",     label: "Big Saver",             hint: "Bank 500 points at once",          test: (s) => s.wallet >= 500 },
+  { id: "high_roller",   label: "High Roller",           hint: "Bank 2,000 points at once",        test: (s) => s.wallet >= 2000 },
+];
+
 /* ---------- icons ---------- */
 const Icons = () => (
   <svg style={{ display: "none" }} aria-hidden>
@@ -50,6 +78,8 @@ const Icons = () => (
     <symbol id="i-fae" viewBox="0 0 16 16"><path d="M2 2h12v12H2z" fill="#ff4fa3"/><path d="M5 4h6v2H7v2h3v2H7v3H5z" fill="#fff"/></symbol>
     <symbol id="i-grid" viewBox="0 0 16 16"><rect x="1" y="1" width="4" height="4" fill="#000"/><rect x="6" y="1" width="4" height="4" fill="#000"/><rect x="11" y="1" width="4" height="4" fill="#000"/><rect x="1" y="6" width="4" height="4" fill="#000"/><rect x="6" y="6" width="4" height="4" fill="#000"/><rect x="11" y="6" width="4" height="4" fill="#000"/><rect x="1" y="11" width="4" height="4" fill="#000"/><rect x="6" y="11" width="4" height="4" fill="#000"/><rect x="11" y="11" width="4" height="4" fill="#000"/></symbol>
     <symbol id="i-plus" viewBox="0 0 16 16"><rect x="7" y="2" width="2" height="12" fill="#000"/><rect x="2" y="7" width="12" height="2" fill="#000"/></symbol>
+    <symbol id="i-journey" viewBox="0 0 16 16"><path d="M1 1h14v14H1z" fill="#fff" stroke="#000"/><path d="M3 12l3-4 3 3 4-6" fill="none" stroke="#ff4fa3" strokeWidth="2"/><circle cx="13" cy="5" r="1.5" fill="#f5c542"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 16 16"><path d="M4 2h8v4a4 4 0 0 1-8 0z" fill="#f5c542" stroke="#000"/><rect x="7" y="10" width="2" height="3" fill="#000"/><rect x="5" y="13" width="6" height="2" fill="#000"/></symbol>
   </svg>
 );
 const Ico = ({ id }) => <svg><use href={`#${id}`} /></svg>;
@@ -489,6 +519,290 @@ function Journal({ entries, wallet, username, onAdd }) {
   );
 }
 
+/* ---------- STORE: gameboy ---------- */
+const PER_PAGE = 6;
+
+function Store({ items, wallet, reliability, onAdd, onDelete, onToggleCart, onCheckout, onDeleteOrder, orders }) {
+  const [view, setView] = useState("shop");       // shop | add | bag | checkout | receipt
+  const [page, setPage] = useState(0);
+  const [receipt, setReceipt] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  // add-item form
+  const [name, setName] = useState("");
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [price, setPrice] = useState("");
+  const [desire, setDesire] = useState(3);
+  const [mode, setMode] = useState("auto");        // auto | manual
+  const [manualPts, setManualPts] = useState("");
+  const fileRef = useRef(null);
+
+  const available = items.filter((i) => i.status === "available");
+  const cart      = items.filter((i) => i.status === "cart");
+  const purchased = items.filter((i) => i.status === "purchased");
+
+  const shelf = [...available, ...cart];
+  const pages = Math.max(1, Math.ceil(shelf.length / PER_PAGE));
+  const shown = shelf.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const cartTotal = cart.reduce((s, i) => s + i.points, 0);
+  const autoPts = suggestPoints(price, desire, reliability);
+
+  const pickFile = (e) => {
+    const f = e.target.files?.[0];
+    if (f) { setFile(f); setPreview(URL.createObjectURL(f)); }
+  };
+
+  const submit = async () => {
+    if (!name.trim()) return;
+    const pts = mode === "auto" ? autoPts : Math.max(1, parseInt(manualPts) || 0);
+    setBusy(true);
+    await onAdd({ name: name.trim(), file, points: pts, price: price ? Number(price) : null, desire });
+    setBusy(false);
+    setName(""); setFile(null); setPreview(null); setPrice(""); setDesire(3); setManualPts(""); setMode("auto");
+    if (fileRef.current) fileRef.current.value = "";
+    setView("shop");
+  };
+
+  const doCheckout = async () => {
+    setBusy(true);
+    const order = await onCheckout();
+    setBusy(false);
+    if (order) { setReceipt(order); setView("receipt"); }
+  };
+
+  return (
+    <div className="gb">
+      <div className="gbMain">
+        <div className="gbScreenFrame">
+          <div className="gbScreen">
+
+            {view === "shop" && (
+              <>
+                {shelf.length === 0 && (
+                  <div className="gbEmpty">
+                    No items yet.<br />Hit <b>+ ADD</b> to upload something you want.
+                  </div>
+                )}
+                <div className="gbGrid">
+                  {shown.map((it) => (
+                    <div key={it.id} className={`gbItem ${it.status === "cart" ? "inCart" : ""}`}>
+                      <div className="gbItemPhoto" onClick={() => onToggleCart(it.id)}>
+                        {it.photo_url
+                          ? <img src={it.photo_url} alt={it.name} />
+                          : <div className="gbNoPhoto">{it.name.slice(0, 14)}</div>}
+                        {it.status === "cart" && <div className="gbInCartFlag">IN CART</div>}
+                        <div className="gbItemDel" onClick={(e) => { e.stopPropagation(); onDelete(it.id); }}>×</div>
+                      </div>
+                      <div className="gbItemPts" onClick={() => onToggleCart(it.id)}>{it.points} pts</div>
+                    </div>
+                  ))}
+                </div>
+                {pages > 1 && <div className="gbPageNum">PAGE {page + 1} / {pages}</div>}
+              </>
+            )}
+
+            {view === "add" && (
+              <div className="gbForm">
+                <div className="gbFormTitle">NEW ITEM</div>
+                <input className="gbInput" placeholder="What is it?" value={name} onChange={(e) => setName(e.target.value)} />
+                <label className="gbUpload">
+                  {preview ? <img src={preview} alt="" /> : <span>+ Upload photo</span>}
+                  <input ref={fileRef} type="file" accept="image/*" onChange={pickFile} hidden />
+                </label>
+
+                <div className="gbModeRow">
+                  <div className={`gbMode ${mode === "auto" ? "on" : ""}`} onClick={() => setMode("auto")}>AUTO PRICE</div>
+                  <div className={`gbMode ${mode === "manual" ? "on" : ""}`} onClick={() => setMode("manual")}>SET MYSELF</div>
+                </div>
+
+                {mode === "auto" ? (
+                  <>
+                    <input className="gbInput" type="number" placeholder="Real price (RM)" value={price}
+                           onChange={(e) => setPrice(e.target.value)} />
+                    <div className="gbDesireRow">
+                      <span>Desire</span>
+                      {[1, 2, 3, 4, 5].map((d) => (
+                        <div key={d} className={`gbStar ${d <= desire ? "on" : ""}`} onClick={() => setDesire(d)}>★</div>
+                      ))}
+                    </div>
+                    <div className="gbAutoPts">≈ {autoPts} points</div>
+                  </>
+                ) : (
+                  <input className="gbInput" type="number" placeholder="Points to unlock" value={manualPts}
+                         onChange={(e) => setManualPts(e.target.value)} />
+                )}
+
+                <div className="gbFormBtns">
+                  <div className="gbBtn" onClick={() => setView("shop")}>Cancel</div>
+                  <div className="gbBtn primary" onClick={submit}>{busy ? "…" : "Save"}</div>
+                </div>
+              </div>
+            )}
+
+            {view === "bag" && (
+              <div className="gbBag">
+                <div className="gbFormTitle">MY PURCHASES</div>
+                {purchased.length === 0 && <div className="gbEmpty">Nothing bought yet.<br />Go earn it.</div>}
+                {purchased.map((it) => (
+                  <div key={it.id} className="gbBagRow">
+                    {it.photo_url && <img src={it.photo_url} alt="" />}
+                    <div className="gbBagInfo">
+                      <b>{it.name}</b>
+                      <small>{it.purchased_at ? formatDate(it.purchased_at) : ""} · {it.points} pts</small>
+                    </div>
+                  </div>
+                ))}
+                <div className="gbBtn" onClick={() => setView("shop")} style={{ marginTop: 8 }}>Back</div>
+              </div>
+            )}
+
+            {view === "checkout" && (
+              <div className="xpDialog">
+                <div className="xpBar"><span>Windows XP</span><div className="xpX" onClick={() => setView("shop")}>✕</div></div>
+                <div className="xpBody">
+                  <div className="xpIcon">i</div>
+                  <div className="xpText">
+                    are you sure you want to check out?<br />
+                    total current point cost : <b>{cartTotal}</b>
+                    {cartTotal > wallet && <div className="xpWarn">Not enough points — you have {wallet}.</div>}
+                    <div className="xpFinal">This cannot be undone.</div>
+                  </div>
+                </div>
+                <div className="xpBtns">
+                  <div className="xpBtn" onClick={() => setView("shop")}>Cancel</div>
+                  <div className={`xpBtn ${cartTotal > wallet || cart.length === 0 ? "off" : ""}`}
+                       onClick={() => cartTotal <= wallet && cart.length > 0 && doCheckout()}>
+                    {busy ? "…" : "OK"}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {view === "receipt" && receipt && (
+              <div className="rcpt">
+                <div className="rcptLogo">FAE</div>
+                <div className="rcptSub">THE HAUL</div>
+                <div className="rcptMeta">
+                  ORDER #{String(receipt.id).slice(0, 4).toUpperCase()}<br />
+                  {new Date(receipt.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+                </div>
+                <div className="rcptRule" />
+                {receipt.items.map((it) => (
+                  <div className="rcptLine" key={it.id}>
+                    <span>{it.name.toUpperCase()}</span>
+                    <span>{it.points}</span>
+                  </div>
+                ))}
+                <div className="rcptRule" />
+                <div className="rcptLine big"><span>ITEMS :</span><span>{receipt.items.length}</span></div>
+                <div className="rcptLine big"><span>POINTS :</span><span>{receipt.total_points}</span></div>
+                <div className="rcptRule" />
+                <div className="rcptMeta">
+                  BALANCE LEFT : {wallet}<br />
+                  EARNED THE HARD WAY
+                </div>
+                <div className="rcptBars">
+                  {Array.from({ length: 44 }).map((_, i) => (
+                    <i key={i} style={{ width: (i * 7) % 3 === 0 ? 3 : 1 }} />
+                  ))}
+                </div>
+                <div className="gbBtn" onClick={() => setView("shop")}>Done</div>
+              </div>
+            )}
+
+          </div>
+        </div>
+
+        {/* right control column */}
+        <div className="gbSide">
+          <div className="gbCart" onClick={() => setView("checkout")}>
+            <svg viewBox="0 0 24 24" className="gbCartIcon">
+              <path d="M3 4h3l3 11h9l3-8H7" fill="none" stroke="var(--tama-edge)" strokeWidth="2" />
+              <circle cx="10" cy="19" r="1.6" fill="var(--tama-edge)" />
+              <circle cx="18" cy="19" r="1.6" fill="var(--tama-edge)" />
+            </svg>
+            {cart.length > 0 && <div className="gbBadge">{cart.length}</div>}
+          </div>
+
+          <div className="gbDpad">
+            <div className="gbD up"    onClick={() => setPage((p) => Math.max(0, p - 1))}>▲</div>
+            <div className="gbD left"  onClick={() => setPage((p) => Math.max(0, p - 1))}>◀</div>
+            <div className="gbD mid" />
+            <div className="gbD right" onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}>▶</div>
+            <div className="gbD down"  onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}>▼</div>
+          </div>
+
+          <div className="gbBagBtn" onClick={() => setView("bag")}>
+            <svg viewBox="0 0 24 24">
+              <path d="M5 8h14l-1 12H6z" fill="var(--tama-b)" stroke="var(--tama-edge)" strokeWidth="1.5" />
+              <path d="M9 8V6a3 3 0 0 1 6 0v2" fill="none" stroke="var(--tama-edge)" strokeWidth="1.5" />
+            </svg>
+            {purchased.length > 0 && <div className="gbBadge dark">{purchased.length}</div>}
+          </div>
+        </div>
+      </div>
+
+      <div className="gbBottom">
+        <div className="gbBtn primary" onClick={() => setView("add")}>+ ADD</div>
+        <div className="gbWallet">{wallet.toLocaleString()} pts</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- JOURNEY ---------- */
+function Journey({ stats, unlocked }) {
+  const rows = [
+    ["Tasks completed",   stats.tasksDone],
+    ["Habit days ticked", stats.habitDays],
+    ["Best habit streak", `${stats.bestStreak} days`],
+    ["Journal entries",   stats.entries],
+    ["Points earned",     stats.earnedTotal.toLocaleString()],
+    ["Rewards bought",    stats.purchases],
+    ["Points spent",      stats.spentTotal.toLocaleString()],
+    ["Current balance",   stats.wallet.toLocaleString()],
+  ];
+
+  return (
+    <div className="jny">
+      <div className="jnyHead">
+        <div className="jnyLevel">
+          <b>LVL {Math.max(1, Math.floor(stats.wallet / 500) + 1)}</b>
+          <small>{stats.wallet.toLocaleString()} pts banked</small>
+        </div>
+        <div className="jnyReliability">
+          <div className="jnyRelBar"><i style={{ width: `${Math.round(stats.reliability * 100)}%` }} /></div>
+          <small>{Math.round(stats.reliability * 100)}% follow-through</small>
+        </div>
+      </div>
+
+      <div className="jnySection">Your numbers</div>
+      <div className="jnyStats">
+        {rows.map(([k, v]) => (
+          <div className="jnyStat" key={k}><span>{k}</span><b>{v}</b></div>
+        ))}
+      </div>
+
+      <div className="jnySection">Milestones</div>
+      <div className="jnyAch">
+        {ACHIEVEMENTS.map((a) => {
+          const got = unlocked.includes(a.id);
+          return (
+            <div key={a.id} className={`jnyBadge ${got ? "got" : ""}`} title={a.hint}>
+              <Ico id="i-trophy" />
+              <div>
+                <b>{a.label}</b>
+                <small>{got ? "Unlocked" : a.hint}</small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- theme data ---------- */
 const WALLPAPERS = ["#3a2a4d", "#008080", "#5b3a29", "#1a1a2e", "#c96a8b", "#7aa37a", "#404040"];
 const PATTERNS = [
@@ -574,15 +888,19 @@ function Desktop({ session }) {
   const [projectTasks, setProjectTasks] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [journalEntries, setJournalEntries] = useState([]);
+  const [storeItems, setStoreItems] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [unlocked, setUnlocked] = useState([]);
+  const [toast, setToast] = useState(null);
   const [wallet, setWallet] = useState(0);
   const [shown, setShown]   = useState(0);
   const [floatText, setFloat] = useState(null);
   const [hyped, setHyped]   = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  const [open, setOpen]     = useState({ tasks: true, habits: true, habitsHub: false, cpl: false, projectHub: false, journal: false });
+  const [open, setOpen]     = useState({ tasks: true, habits: true, habitsHub: false, cpl: false, projectHub: false, journal: false, store: false, journey: false });
   const [zTop, setZTop]     = useState(10);
-  const [zMap, setZMap]     = useState({ tasks: 3, habits: 2, habitsHub: 4, tama: 5, cpl: 9, projectHub: 6, journal: 7 });
+  const [zMap, setZMap]     = useState({ tasks: 3, habits: 2, habitsHub: 4, tama: 5, cpl: 9, projectHub: 6, journal: 7, store: 8, journey: 8 });
   const [startOpen, setStartOpen] = useState(false);
   const [tab, setTab]       = useState("desktop");
   const [theme, setTheme]   = useState(DEFAULT_THEME);
@@ -594,13 +912,15 @@ function Desktop({ session }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [profileRes, tasksRes, habitsRes, foldersRes, projectRes, entriesRes] = await Promise.all([
+      const [profileRes, tasksRes, habitsRes, foldersRes, projectRes, entriesRes, storeRes, ordersRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", uid).single(),
         supabase.from("tasks").select("*").eq("user_id", uid).order("created_at"),
         supabase.from("habits").select("*").eq("user_id", uid).order("created_at"),
         supabase.from("folders").select("*").eq("user_id", uid).order("created_at"),
         supabase.from("project_tasks").select("*").eq("user_id", uid).order("created_at"),
         supabase.from("journal_entries").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
+        supabase.from("store_items").select("*").eq("user_id", uid).order("created_at"),
+        supabase.from("orders").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
       ]);
       if (cancelled) return;
 
@@ -619,6 +939,8 @@ function Desktop({ session }) {
       setJournalEntries(
         (entriesRes.data || []).map((e) => ({ id: e.id, date: formatDate(e.created_at), caption: e.caption, photo: e.photo_url }))
       );
+      setStoreItems(storeRes.data || []);
+      setOrders(ordersRes.data || []);
       setLoaded(true);
     })();
     return () => { cancelled = true; };
@@ -806,6 +1128,101 @@ function Desktop({ session }) {
   const ticked    = allDays.filter((v) => v === true).length;
   const openDays  = allDays.filter((v) => v === null).length;
 
+  // ---- reliability: how much of what you set out to do, you actually did ----
+  const loggedDays = allDays.filter((v) => v !== null).length;
+  const taskRate  = tasks.length ? doneTasks.length / tasks.length : 0.5;
+  const habitRate = loggedDays ? ticked / loggedDays : 0.5;
+  const reliability = (taskRate + habitRate) / 2;
+
+  // ---- STORE ----
+  const addStoreItem = async ({ name, file, points, price, desire }) => {
+    let photo_url = null;
+    if (file) {
+      const path = `${uid}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from("store-items").upload(path, file);
+      if (!upErr) {
+        const { data } = supabase.storage.from("store-items").getPublicUrl(path);
+        photo_url = data.publicUrl;
+      }
+    }
+    const { data, error } = await supabase
+      .from("store_items")
+      .insert({ user_id: uid, name, photo_url, points, price, desire, status: "available" })
+      .select()
+      .single();
+    if (!error && data) setStoreItems((xs) => [...xs, data]);
+  };
+
+  const deleteStoreItem = async (id) => {
+    setStoreItems((xs) => xs.filter((x) => x.id !== id));
+    await supabase.from("store_items").delete().eq("id", id);
+  };
+
+  const toggleCart = async (id) => {
+    const it = storeItems.find((x) => x.id === id);
+    if (!it || it.status === "purchased") return;
+    const status = it.status === "cart" ? "available" : "cart";
+    setStoreItems((xs) => xs.map((x) => (x.id === id ? { ...x, status } : x)));
+    await supabase.from("store_items").update({ status }).eq("id", id);
+  };
+
+  const checkout = async () => {
+    const cart = storeItems.filter((x) => x.status === "cart");
+    if (!cart.length) return null;
+    const total = cart.reduce((s, x) => s + x.points, 0);
+    if (total > wallet) return null;
+
+    const { data: order, error } = await supabase
+      .from("orders")
+      .insert({ user_id: uid, total_points: total })
+      .select()
+      .single();
+    if (error || !order) return null;
+
+    const purchased_at = new Date().toISOString();
+    await supabase
+      .from("store_items")
+      .update({ status: "purchased", order_id: order.id, purchased_at })
+      .in("id", cart.map((x) => x.id));
+
+    setStoreItems((xs) =>
+      xs.map((x) => (x.status === "cart" ? { ...x, status: "purchased", order_id: order.id, purchased_at } : x))
+    );
+    setOrders((os) => [order, ...os]);
+    award(-total);
+
+    return { ...order, items: cart };
+  };
+
+  // ---- JOURNEY stats ----
+  const purchasedItems = storeItems.filter((x) => x.status === "purchased");
+  const spentTotal = orders.reduce((s, o) => s + (o.total_points || 0), 0);
+  const bestStreak = habits.reduce((m, h) => Math.max(m, currentStreak(h.week)), 0);
+  const stats = {
+    tasksDone: doneTasks.length,
+    habitDays: ticked,
+    bestStreak,
+    entries: journalEntries.length,
+    purchases: purchasedItems.length,
+    spentTotal,
+    earnedTotal: wallet + spentTotal,
+    wallet,
+    reliability,
+  };
+
+  // ---- achievement watcher ----
+  useEffect(() => {
+    if (!loaded) return;
+    const got = ACHIEVEMENTS.filter((a) => a.test(stats)).map((a) => a.id);
+    const fresh = got.filter((id) => !unlocked.includes(id));
+    if (fresh.length) {
+      setUnlocked(got);
+      const a = ACHIEVEMENTS.find((x) => x.id === fresh[0]);
+      setToast(a.label);
+      setTimeout(() => setToast(null), 3500);
+    }
+  }, [stats.tasksDone, stats.habitDays, stats.bestStreak, stats.entries, stats.purchases, stats.wallet, loaded]);
+
   const close = (k) => setOpen((o) => ({ ...o, [k]: false }));
   const openWin = (k) => { setOpen((o) => ({ ...o, [k]: true })); focus(k); };
 
@@ -829,8 +1246,9 @@ function Desktop({ session }) {
         <div className="dock">
           <div className="icon" onClick={() => openWin("habitsHub")}><Ico id="i-stats" /><span>Habits</span></div>
           <div className="icon" onClick={() => openWin("projectHub")}><Ico id="i-space" /><span>Tasks</span></div>
-          <div className="icon"><Ico id="i-store" /><span>Store</span></div>
+          <div className="icon" onClick={() => openWin("store")}><Ico id="i-store" /><span>Store</span></div>
           <div className="icon" onClick={() => openWin("journal")}><Ico id="i-page" /><span>Journal</span></div>
+          <div className="icon" onClick={() => openWin("journey")}><Ico id="i-journey" /><span>Journey</span></div>
           <div className="icon" onClick={() => openWin("cpl")}><Ico id="i-cpl" /><span>Settings</span></div>
         </div>
 
@@ -995,6 +1413,42 @@ function Desktop({ session }) {
           </Win>
         )}
 
+        {/* ---- STORE ---- */}
+        {open.store && (
+          <Win
+            id="store" icon="i-store" title="Store — Rewards"
+            init={{ x: 160, y: 40, w: 560, h: 470 }}
+            z={zMap.store} focus={focus} onClose={() => close("store")}
+          >
+            <div className="content storeWrap">
+              <Store
+                items={storeItems}
+                orders={orders}
+                wallet={wallet}
+                reliability={reliability}
+                onAdd={addStoreItem}
+                onDelete={deleteStoreItem}
+                onToggleCart={toggleCart}
+                onCheckout={checkout}
+              />
+            </div>
+          </Win>
+        )}
+
+        {/* ---- JOURNEY ---- */}
+        {open.journey && (
+          <Win
+            id="journey" icon="i-journey" title="Journey — Your Progress"
+            menu={["File", "View", "Help"]}
+            init={{ x: 200, y: 60, w: 420, h: 480 }}
+            z={zMap.journey} focus={focus} onClose={() => close("journey")}
+          >
+            <div className="content">
+              <Journey stats={stats} unlocked={unlocked} />
+            </div>
+          </Win>
+        )}
+
         {/* ---- CONTROL PANEL ---- */}
         {open.cpl && (
           <Win
@@ -1106,7 +1560,7 @@ function Desktop({ session }) {
           hyped={hyped}
           z={zMap.tama}
           focus={focus}
-          onStore={() => setFloat({ text: "STORE", key: Date.now() })}
+          onStore={() => openWin("store")}
           onFeed={() => { setHyped(true); setTimeout(() => setHyped(false), 1500); }}
           onTweak={() => openWin("cpl")}
         />
@@ -1130,9 +1584,14 @@ function Desktop({ session }) {
             <div className="smitem" onClick={() => { openWin("projectHub"); setStartOpen(false); }}>
               <Ico id="i-space" />Tasks
             </div>
-            <div className="smitem"><Ico id="i-store" />Store</div>
+            <div className="smitem" onClick={() => { openWin("store"); setStartOpen(false); }}>
+              <Ico id="i-store" />Store
+            </div>
             <div className="smitem" onClick={() => { openWin("journal"); setStartOpen(false); }}>
               <Ico id="i-page" />Journal
+            </div>
+            <div className="smitem" onClick={() => { openWin("journey"); setStartOpen(false); }}>
+              <Ico id="i-journey" />Journey
             </div>
             <div className="smsep" />
             <div className="smitem" onClick={() => { openWin("cpl"); setStartOpen(false); }}>
@@ -1140,6 +1599,14 @@ function Desktop({ session }) {
             </div>
             <div className="smitem" onClick={() => supabase.auth.signOut()}><Ico id="i-bin" />Log Off…</div>
           </div>
+        </div>
+      )}
+
+      {/* ---- ACHIEVEMENT TOAST ---- */}
+      {toast && (
+        <div className="toast">
+          <Ico id="i-trophy" />
+          <div><b>Milestone unlocked</b><small>{toast}</small></div>
         </div>
       )}
 
@@ -1152,6 +1619,7 @@ function Desktop({ session }) {
         <div className="vr" />
         <div className="tbtn" onClick={() => openWin("tasks")}><Ico id="i-play" />Today — Task Pl…</div>
         <div className="tbtn" onClick={() => openWin("habits")}><Ico id="i-mine" />Habits</div>
+        <div className="tbtn" onClick={() => openWin("store")}><Ico id="i-store" />Store</div>
         <div className="tray">
           <b>{shown.toLocaleString()} pts</b>
           <span>{clock}</span>

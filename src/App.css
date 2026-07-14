@@ -1,3 +1,4 @@
+
 @font-face{font-family:"MS Sans";src:url("https://unpkg.com/98.css@0.1.20/dist/ms_sans_serif.woff2") format("woff2");font-weight:normal;font-display:swap;}
 @font-face{font-family:"MS Sans";src:url("https://unpkg.com/98.css@0.1.20/dist/ms_sans_serif_bold.woff2") format("woff2");font-weight:bold;font-display:swap;}
 
@@ -278,6 +279,154 @@
 .jrnlOverlayClose{position:absolute; top:4px; right:6px; cursor:pointer; font-weight:bold;}
 .jrnlOverlayDate{font-size:10px; color:#777; margin-bottom:4px;}
 .jrnlOverlayCaption{font-size:12px; line-height:1.4;}
+
+/* ================= STORE: gameboy ================= */
+.storeWrap{padding:0;}
+.gb{flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; padding:10px;
+  background:linear-gradient(160deg, color-mix(in srgb, var(--tama-a) 70%, #fff), var(--tama-a));
+  border:2px solid var(--tama-edge); border-radius:12px;}
+.gbMain{flex:1; min-height:0; display:flex; gap:10px;}
+.gbScreenFrame{flex:1; min-width:0; background:color-mix(in srgb, var(--tama-edge) 25%, #fff);
+  border:3px solid var(--tama-edge); border-radius:10px; padding:8px;
+  box-shadow:inset 2px 2px 5px rgba(0,0,0,.25);}
+.gbScreen{width:100%; height:100%; overflow:auto; background:#fff; border:2px solid var(--tama-edge);
+  border-radius:6px; padding:8px; display:flex; flex-direction:column;}
+.gbEmpty{margin:auto; text-align:center; color:#888; font-size:11px; line-height:1.6;}
+
+.gbGrid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+.gbItem{display:flex; flex-direction:column; gap:3px;}
+.gbItemPhoto{position:relative; aspect-ratio:4/3; background:#111; border-radius:4px; overflow:hidden; cursor:pointer;
+  display:grid; place-items:center;}
+.gbItemPhoto img{width:100%; height:100%; object-fit:cover;}
+.gbNoPhoto{color:#fff; font-size:9px; text-align:center; padding:4px;}
+.gbItem.inCart .gbItemPhoto{outline:3px solid var(--tama-b); outline-offset:-3px;}
+.gbInCartFlag{position:absolute; bottom:0; left:0; right:0; background:var(--tama-b); color:#fff;
+  font:bold 8px "MS Sans"; text-align:center; padding:2px;}
+.gbItemDel{position:absolute; top:2px; right:3px; width:14px; height:14px; border-radius:50%;
+  background:rgba(0,0,0,.6); color:#fff; font-size:11px; line-height:13px; text-align:center; cursor:pointer;}
+.gbItemDel:hover{background:#c00;}
+.gbItemPts{font:bold 9px "MS Sans"; text-align:center; padding:3px; cursor:pointer; color:#123;
+  background:linear-gradient(#dff0ff,#a8d4f0); border:1px solid #6b9dc2; border-radius:9px;}
+.gbPageNum{margin-top:auto; padding-top:6px; text-align:center; font:bold 9px "MS Sans"; color:#888;}
+
+.gbForm{display:flex; flex-direction:column; gap:7px;}
+.gbFormTitle{font:bold 10px "MS Sans"; letter-spacing:.1em; color:var(--tama-edge); text-align:center;}
+.gbInput{padding:5px; font:11px "MS Sans"; border:2px solid; border-color:#999 #fff #fff #999;}
+.gbUpload{display:grid; place-items:center; height:80px; cursor:pointer; background:#f4f4f8;
+  border:2px dashed var(--tama-edge); font-size:11px; color:var(--tama-edge); overflow:hidden;}
+.gbUpload img{width:100%; height:100%; object-fit:contain;}
+.gbModeRow{display:flex; gap:4px;}
+.gbMode{flex:1; text-align:center; padding:4px; font:bold 9px "MS Sans"; cursor:pointer;
+  background:#e4e4ea; border:1px solid #999;}
+.gbMode.on{background:var(--tama-b); color:#fff; border-color:var(--tama-edge);}
+.gbDesireRow{display:flex; align-items:center; gap:3px; font-size:11px;}
+.gbDesireRow span{margin-right:4px;}
+.gbStar{font-size:16px; color:#ccc; cursor:pointer; line-height:1;}
+.gbStar.on{color:var(--tama-b);}
+.gbAutoPts{text-align:center; font:bold 12px "Courier New",monospace; color:var(--tama-edge);
+  background:#f6f0f8; padding:4px; border:1px solid var(--tama-edge);}
+.gbFormBtns{display:flex; gap:5px; justify-content:flex-end;}
+.gbBtn{padding:5px 14px; font:bold 10px "MS Sans"; cursor:pointer; text-align:center;
+  background:#e4e4ea; border:2px solid; border-color:#fff #888 #888 #fff;}
+.gbBtn:active{border-color:#888 #fff #fff #888;}
+.gbBtn.primary{background:var(--tama-b); color:#fff; border-color:color-mix(in srgb,var(--tama-b) 60%,#fff) var(--tama-edge) var(--tama-edge) color-mix(in srgb,var(--tama-b) 60%,#fff);}
+
+.gbBag{display:flex; flex-direction:column; gap:5px;}
+.gbBagRow{display:flex; gap:8px; align-items:center; padding:5px; background:#f7f7fa; border:1px solid #ddd;}
+.gbBagRow img{width:36px; height:36px; object-fit:cover; border:1px solid #bbb;}
+.gbBagInfo b{display:block; font-size:11px;}
+.gbBagInfo small{font-size:9px; color:#777;}
+
+/* right control column */
+.gbSide{width:74px; flex:0 0 74px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:4px 0;}
+.gbCart{position:relative; width:46px; height:46px; display:grid; place-items:center; cursor:pointer;}
+.gbCartIcon{width:38px; height:38px;}
+.gbBadge{position:absolute; top:-2px; right:-2px; min-width:18px; height:18px; padding:0 4px; border-radius:50%;
+  background:var(--tama-c); color:#fff; font:bold 10px/18px "MS Sans"; text-align:center;
+  border:2px solid #fff;}
+.gbBadge.dark{background:var(--tama-edge);}
+.gbDpad{position:relative; width:62px; height:62px;}
+.gbD{position:absolute; width:20px; height:20px; display:grid; place-items:center; cursor:pointer;
+  background:#fdeef6; color:var(--tama-edge); font-size:8px;
+  border:1px solid var(--tama-edge); box-shadow:inset -1px -1px 0 rgba(0,0,0,.12);}
+.gbD.up{top:0; left:21px;} .gbD.down{bottom:0; left:21px;}
+.gbD.left{left:0; top:21px;} .gbD.right{right:0; top:21px;}
+.gbD.mid{top:21px; left:21px; cursor:default;}
+.gbD:active{background:var(--tama-b); color:#fff;}
+.gbBagBtn{position:relative; width:44px; height:44px; display:grid; place-items:center; cursor:pointer;}
+.gbBagBtn svg{width:36px; height:36px;}
+
+.gbBottom{flex:0 0 auto; display:flex; align-items:center; gap:8px;}
+.gbWallet{margin-left:auto; font:bold 11px "Courier New",monospace; color:var(--tama-edge);
+  background:#fff; padding:4px 10px; border:2px solid var(--tama-edge); border-radius:10px;}
+
+/* ---- XP checkout dialog ---- */
+.xpDialog{margin:auto; width:100%; max-width:300px; background:var(--face);
+  border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);
+  box-shadow:3px 3px 0 rgba(0,0,0,.25);}
+.xpBar{display:flex; align-items:center; padding:4px 6px; color:#fff; font:bold 12px "MS Sans";
+  background:linear-gradient(180deg,#4a90e2,#1e5fbf);}
+.xpBar span{flex:1;}
+.xpX{width:18px; height:16px; display:grid; place-items:center; background:#e04a3a; cursor:pointer;
+  border:1px solid #fff; font-size:10px;}
+.xpBody{display:flex; gap:12px; padding:16px 14px; align-items:flex-start;}
+.xpIcon{width:32px; height:32px; flex:0 0 32px; border-radius:50%; background:#1e5fbf; color:#fff;
+  display:grid; place-items:center; font:italic bold 18px Georgia,serif;}
+.xpText{font-size:11px; line-height:1.6;}
+.xpWarn{color:#c00; font-weight:bold; margin-top:4px;}
+.xpFinal{margin-top:6px; color:#555;}
+.xpBtns{display:flex; justify-content:center; gap:8px; padding:0 14px 14px;}
+.xpBtn{min-width:76px; text-align:center; padding:4px 10px; font-size:11px; cursor:pointer; background:var(--face);
+  border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);}
+.xpBtn:active{border-color:var(--dark) var(--hi) var(--hi) var(--dark);}
+.xpBtn.off{opacity:.4; cursor:not-allowed;}
+
+/* ---- receipt ---- */
+.rcpt{background:#fdfdfb; padding:10px 14px; font-family:"Courier New",monospace; color:#111;
+  display:flex; flex-direction:column; gap:5px;}
+.rcptLogo{text-align:center; font:bold 24px "Courier New",monospace; letter-spacing:.2em;}
+.rcptSub{text-align:center; font-size:10px; letter-spacing:.35em; margin-bottom:6px;}
+.rcptMeta{font-size:10px; line-height:1.6; letter-spacing:.05em;}
+.rcptRule{border-top:2px dashed #111; margin:5px 0;}
+.rcptLine{display:flex; justify-content:space-between; font-size:11px; letter-spacing:.05em; gap:10px;}
+.rcptLine span:first-child{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.rcptLine.big{font-weight:bold; font-size:13px;}
+.rcptBars{display:flex; gap:2px; justify-content:center; align-items:flex-end; height:44px; margin:8px 0;}
+.rcptBars i{background:#111; height:100%;}
+
+/* ================= JOURNEY ================= */
+.jny{flex:1; min-height:0; overflow:auto; background:#fff; padding:10px; display:flex; flex-direction:column; gap:8px;
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.jnyHead{display:flex; gap:10px; align-items:center;}
+.jnyLevel{flex:0 0 auto; padding:8px 12px; background:linear-gradient(160deg,var(--tama-a),var(--tama-b));
+  color:#fff; border:2px solid var(--tama-edge); text-align:center;}
+.jnyLevel b{display:block; font:bold 16px "Courier New",monospace;}
+.jnyLevel small{font-size:9px; opacity:.9;}
+.jnyReliability{flex:1;}
+.jnyRelBar{height:14px; background:#eee; border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow); padding:1px;}
+.jnyRelBar i{display:block; height:100%; background:repeating-linear-gradient(90deg,var(--tick) 0 4px,#d5f5e0 4px 6px); transition:width .3s;}
+.jnyReliability small{font-size:10px; color:#666;}
+.jnySection{font:bold 11px "MS Sans"; padding:3px 0; border-bottom:1px solid #ccc; margin-top:4px;}
+.jnyStats{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#ddd; border:1px solid #ddd;}
+.jnyStat{display:flex; justify-content:space-between; padding:5px 7px; background:#fafafa; font-size:11px;}
+.jnyStat b{font-family:"Courier New",monospace;}
+.jnyAch{display:flex; flex-direction:column; gap:3px;}
+.jnyBadge{display:flex; align-items:center; gap:8px; padding:5px 7px; background:#f4f4f4; border:1px solid #e0e0e0; opacity:.5;}
+.jnyBadge.got{opacity:1; background:#fff8e1; border-color:#f5c542;}
+.jnyBadge svg{width:20px; height:20px; flex:0 0 20px; filter:grayscale(1);}
+.jnyBadge.got svg{filter:none;}
+.jnyBadge b{display:block; font-size:11px;}
+.jnyBadge small{font-size:9px; color:#777;}
+
+/* ---- achievement toast ---- */
+.toast{position:absolute; right:14px; bottom:44px; z-index:500; display:flex; align-items:center; gap:10px;
+  padding:10px 14px; background:var(--face); animation:toastIn .35s ease;
+  border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);
+  box-shadow:3px 3px 0 rgba(0,0,0,.3);}
+.toast svg{width:26px; height:26px;}
+.toast b{display:block; font-size:11px;}
+.toast small{font-size:10px; color:#555;}
+@keyframes toastIn{from{transform:translateY(20px); opacity:0}to{transform:translateY(0); opacity:1}}
 
 /* ---- control panel ---- */
 .tabs{display:flex; gap:2px; margin:4px 2px 0;}
