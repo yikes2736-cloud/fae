@@ -8,6 +8,8 @@ import "./App.css";
 
 const taskPoints = (d) => 10 * d;
 const DIFFICULTY = { 1: "EASY ×1", 2: "MED ×2", 3: "HARD ×3" };
+const FREQ_ORDER = ["none", "once", "hourly", "daily"];
+const FREQ_LABEL = { none: "NO REMINDER", once: "REMIND ONCE", hourly: "REMIND HOURLY", daily: "REMIND DAILY" };
 
 const DEFAULT_THEME = { wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0 };
 const formatDate = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -553,22 +555,41 @@ function Store({ items, wallet, reliability, onAdd, onDelete, onToggleCart, onCh
     if (f) { setFile(f); setPreview(URL.createObjectURL(f)); }
   };
 
+  const [addError, setAddError] = useState("");
+
   const submit = async () => {
-    if (!name.trim()) return;
+    if (!name.trim()) { setAddError("Give it a name first."); return; }
     const pts = mode === "auto" ? autoPts : Math.max(1, parseInt(manualPts) || 0);
     setBusy(true);
-    await onAdd({ name: name.trim(), file, points: pts, price: price ? Number(price) : null, desire });
-    setBusy(false);
-    setName(""); setFile(null); setPreview(null); setPrice(""); setDesire(3); setManualPts(""); setMode("auto");
-    if (fileRef.current) fileRef.current.value = "";
-    setView("shop");
+    setAddError("");
+    try {
+      await onAdd({ name: name.trim(), file, points: pts, price: price ? Number(price) : null, desire });
+      setName(""); setFile(null); setPreview(null); setPrice(""); setDesire(3); setManualPts(""); setMode("auto");
+      if (fileRef.current) fileRef.current.value = "";
+      setView("shop");
+    } catch (err) {
+      console.error("Adding store item failed:", err);
+      setAddError(err.message || "Couldn't save that item — try again.");
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const [checkoutError, setCheckoutError] = useState("");
 
   const doCheckout = async () => {
     setBusy(true);
-    const order = await onCheckout();
-    setBusy(false);
-    if (order) { setReceipt(order); setView("receipt"); }
+    setCheckoutError("");
+    try {
+      const order = await onCheckout();
+      if (order) { setReceipt(order); setView("receipt"); }
+      else setCheckoutError("Checkout didn't go through — try again.");
+    } catch (err) {
+      console.error("Checkout failed:", err);
+      setCheckoutError(err.message || "Checkout didn't go through — try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -633,6 +654,7 @@ function Store({ items, wallet, reliability, onAdd, onDelete, onToggleCart, onCh
                          onChange={(e) => setManualPts(e.target.value)} />
                 )}
 
+                {addError && <div className="gbFormError">{addError}</div>}
                 <div className="gbFormBtns">
                   <div className="gbBtn" onClick={() => setView("shop")}>Cancel</div>
                   <div className="gbBtn primary" onClick={submit}>{busy ? "…" : "Save"}</div>
@@ -666,6 +688,7 @@ function Store({ items, wallet, reliability, onAdd, onDelete, onToggleCart, onCh
                     are you sure you want to check out?<br />
                     total current point cost : <b>{cartTotal}</b>
                     {cartTotal > wallet && <div className="xpWarn">Not enough points — you have {wallet}.</div>}
+                    {checkoutError && <div className="xpWarn">{checkoutError}</div>}
                     <div className="xpFinal">This cannot be undone.</div>
                   </div>
                 </div>
@@ -1016,10 +1039,10 @@ function Desktop({ session }) {
     await supabase.from("tasks").update({ done }).eq("id", id);
   };
 
-  const addTask = async (name, difficulty) => {
+  const addTask = async (name, difficulty, due_at, remind_freq) => {
     const { data, error } = await supabase
       .from("tasks")
-      .insert({ user_id: uid, name, difficulty, done: false })
+      .insert({ user_id: uid, name, difficulty, done: false, due_at: due_at || null, remind_freq: remind_freq || "none" })
       .select()
       .single();
     if (!error && data) setTasks((ts) => [...ts, data]);
@@ -1140,7 +1163,10 @@ function Desktop({ session }) {
     if (file) {
       const path = `${uid}/${Date.now()}-${file.name}`;
       const { error: upErr } = await supabase.storage.from("store-items").upload(path, file);
-      if (!upErr) {
+      if (upErr) {
+        console.error("Store photo upload failed:", upErr.message);
+        // don't block the whole item on a photo hiccup — just save without the picture
+      } else {
         const { data } = supabase.storage.from("store-items").getPublicUrl(path);
         photo_url = data.publicUrl;
       }
@@ -1150,7 +1176,11 @@ function Desktop({ session }) {
       .insert({ user_id: uid, name, photo_url, points, price, desire, status: "available" })
       .select()
       .single();
-    if (!error && data) setStoreItems((xs) => [...xs, data]);
+    if (error) {
+      console.error("Saving store item failed:", error.message);
+      throw new Error(error.message);
+    }
+    setStoreItems((xs) => [...xs, data]);
   };
 
   const deleteStoreItem = async (id) => {
@@ -1223,16 +1253,63 @@ function Desktop({ session }) {
     }
   }, [stats.tasksDone, stats.habitDays, stats.bestStreak, stats.entries, stats.purchases, stats.wallet, loaded]);
 
+  // ---- reminders (foreground) ----
+  const lastRemindedRef = useRef(new Map());
+  const [notifPermission, setNotifPermission] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
+  );
+
+  const requestNotifPermission = async () => {
+    if (typeof Notification === "undefined") return;
+    const perm = await Notification.requestPermission();
+    setNotifPermission(perm);
+  };
+
+  const fireReminder = (task) => {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      try { new Notification("Fae — task due", { body: task.name }); } catch { /* ignore */ }
+    }
+    setToast(`⏰ ${task.name}`);
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  useEffect(() => {
+    if (!loaded) return;
+    const check = () => {
+      const now = Date.now();
+      tasks.forEach((t) => {
+        if (!t.due_at || t.done || !t.remind_freq || t.remind_freq === "none") return;
+        const due = new Date(t.due_at).getTime();
+        if (now < due) return;
+        const last = lastRemindedRef.current.get(t.id) || 0;
+        const shouldFire =
+          t.remind_freq === "once"
+            ? last === 0
+            : now - last >= (t.remind_freq === "hourly" ? 3600000 : 86400000);
+        if (shouldFire) {
+          fireReminder(t);
+          lastRemindedRef.current.set(t.id, now);
+        }
+      });
+    };
+    check();
+    const iv = setInterval(check, 60000);
+    return () => clearInterval(iv);
+  }, [tasks, loaded]);
+
   const close = (k) => setOpen((o) => ({ ...o, [k]: false }));
   const openWin = (k) => { setOpen((o) => ({ ...o, [k]: true })); focus(k); };
 
   const [addingTask, setAddingTask] = useState(false);
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskDiff, setNewTaskDiff] = useState(1);
+  const [newTaskDue, setNewTaskDue] = useState("");
+  const [newTaskFreq, setNewTaskFreq] = useState("none");
+  const cycleFreq = () => setNewTaskFreq((f) => FREQ_ORDER[(FREQ_ORDER.indexOf(f) + 1) % FREQ_ORDER.length]);
   const submitNewTask = () => {
     if (!newTaskName.trim()) return;
-    addTask(newTaskName.trim(), newTaskDiff);
-    setNewTaskName(""); setNewTaskDiff(1); setAddingTask(false);
+    addTask(newTaskName.trim(), newTaskDiff, newTaskDue ? new Date(newTaskDue).toISOString() : null, newTaskDue ? newTaskFreq : "none");
+    setNewTaskName(""); setNewTaskDiff(1); setNewTaskDue(""); setNewTaskFreq("none"); setAddingTask(false);
   };
 
   if (!loaded) return <div className="authLoading">Loading your desktop…</div>;
@@ -1285,6 +1362,11 @@ function Desktop({ session }) {
                   <div key={t.id} className={`row ${t.done ? "done" : ""}`}>
                     <div className="cb" onClick={() => toggleTask(t.id)}>{t.done ? "✓" : ""}</div>
                     <div className="name">{t.name}</div>
+                    {t.due_at && (
+                      <div className={`dueTag ${!t.done && new Date(t.due_at).getTime() < Date.now() ? "over" : ""}`}>
+                        {new Date(t.due_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                      </div>
+                    )}
                     <div className={`tag ${t.difficulty === 3 ? "hard" : ""}`}>{DIFFICULTY[t.difficulty]}</div>
                     <div className="pts">+{taskPoints(t.difficulty)}</div>
                     <div className="rowDel" onClick={() => deleteTask(t.id)}>×</div>
@@ -1298,6 +1380,14 @@ function Desktop({ session }) {
                       onChange={(e) => setNewTaskName(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && submitNewTask()}
                     />
+                    <input
+                      className="taskAddDate" type="datetime-local"
+                      value={newTaskDue}
+                      onChange={(e) => setNewTaskDue(e.target.value)}
+                    />
+                    {newTaskDue && (
+                      <div className="taskAddDiff" onClick={cycleFreq}>{FREQ_LABEL[newTaskFreq]}</div>
+                    )}
                     <div className="taskAddDiff" onClick={() => setNewTaskDiff((d) => (d === 3 ? 1 : d + 1))}>
                       {DIFFICULTY[newTaskDiff]}
                     </div>
@@ -1457,7 +1547,7 @@ function Desktop({ session }) {
             z={zMap.cpl} focus={focus} onClose={() => close("cpl")}
           >
             <div className="tabs">
-              {["desktop", "windows", "pet"].map((t) => (
+              {["desktop", "windows", "pet", "alerts"].map((t) => (
                 <div key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
                   {t[0].toUpperCase() + t.slice(1)}
                 </div>
@@ -1539,6 +1629,30 @@ function Desktop({ session }) {
                     </div>
                   </fieldset>
                 </>
+              )}
+
+              {tab === "alerts" && (
+                <fieldset>
+                  <legend>Browser notifications</legend>
+                  <div style={{ fontSize: 11, marginBottom: 8 }}>
+                    Status:{" "}
+                    <b>
+                      {notifPermission === "granted" ? "Enabled" :
+                       notifPermission === "denied" ? "Blocked — allow in your browser's site settings" :
+                       notifPermission === "unsupported" ? "Not supported on this browser" :
+                       "Not yet enabled"}
+                    </b>
+                  </div>
+                  {notifPermission !== "granted" && notifPermission !== "unsupported" && (
+                    <div className="cbn" onClick={requestNotifPermission} style={{ display: "inline-block" }}>
+                      Enable notifications
+                    </div>
+                  )}
+                  <div style={{ fontSize: 10, color: "#555", marginTop: 10, lineHeight: 1.5 }}>
+                    These fire while Fae is open in a tab. Reminders that reach you even with the app fully closed
+                    are the next thing being built.
+                  </div>
+                </fieldset>
               )}
             </div>
 
