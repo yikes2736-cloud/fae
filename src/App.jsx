@@ -8,8 +8,17 @@ import "./App.css";
 
 const taskPoints = (d) => 10 * d;
 const DIFFICULTY = { 1: "EASY ×1", 2: "MED ×2", 3: "HARD ×3" };
-const FREQ_ORDER = ["none", "once", "hourly", "daily"];
-const FREQ_LABEL = { none: "NO REMINDER", once: "REMIND ONCE", hourly: "REMIND HOURLY", daily: "REMIND DAILY" };
+const FREQ_ORDER = ["none", "once", "h1", "h2", "h3", "twice_daily", "daily"];
+const FREQ_LABEL = {
+  none: "NO REMINDER",
+  once: "REMIND ONCE",
+  h1: "EVERY HOUR",
+  h2: "EVERY 2 HOURS",
+  h3: "EVERY 3 HOURS",
+  twice_daily: "MORNING & NIGHT",
+  daily: "ONCE DAILY",
+};
+const FREQ_INTERVAL_MS = { h1: 3600000, h2: 7200000, h3: 10800000, daily: 86400000 };
 
 const DEFAULT_THEME = { wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0 };
 const formatDate = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -85,6 +94,56 @@ const Icons = () => (
   </svg>
 );
 const Ico = ({ id }) => <svg><use href={`#${id}`} /></svg>;
+
+/* ---------- retro due-date picker (no native calendar popup) ---------- */
+function DueDatePicker({ value, onChange }) {
+  const [expanded, setExpanded] = useState(false);
+  const current = value ? new Date(value) : null;
+
+  const setQuick = (ms) => onChange(new Date(Date.now() + ms).toISOString());
+
+  const adjust = (unit, delta) => {
+    const d = current ? new Date(current) : new Date();
+    if (unit === "day")  d.setDate(d.getDate() + delta);
+    if (unit === "hour") d.setHours(d.getHours() + delta);
+    if (unit === "min")  d.setMinutes(d.getMinutes() + delta * 5);
+    onChange(d.toISOString());
+  };
+
+  const label = current
+    ? current.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : "NO DUE DATE SET";
+
+  return (
+    <div className="ddp">
+      <div className="ddpLcd">{label}</div>
+      <div className="ddpQuick">
+        <div className="ddpBtn" onClick={() => setQuick(3600000)}>+1H</div>
+        <div className="ddpBtn" onClick={() => setQuick(10800000)}>+3H</div>
+        <div className="ddpBtn" onClick={() => setQuick(86400000)}>+1D</div>
+        <div className="ddpBtn" onClick={() => setQuick(604800000)}>+1WK</div>
+        <div className="ddpBtn" onClick={() => setExpanded((e) => !e)}>{expanded ? "DONE" : "ADJUST"}</div>
+        {value && <div className="ddpBtn clear" onClick={() => onChange(null)}>CLEAR</div>}
+      </div>
+      {expanded && (
+        <div className="ddpSteppers">
+          <div className="ddpStep">
+            <span>Day</span>
+            <div className="ddpArrows"><div onClick={() => adjust("day", 1)}>▲</div><div onClick={() => adjust("day", -1)}>▼</div></div>
+          </div>
+          <div className="ddpStep">
+            <span>Hour</span>
+            <div className="ddpArrows"><div onClick={() => adjust("hour", 1)}>▲</div><div onClick={() => adjust("hour", -1)}>▼</div></div>
+          </div>
+          <div className="ddpStep">
+            <span>Min</span>
+            <div className="ddpArrows"><div onClick={() => adjust("min", 1)}>▲</div><div onClick={() => adjust("min", -1)}>▼</div></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ---------- draggable + resizable window ---------- */
 function Win({ id, title, icon, menu, footer, children, init, z, focus, onClose, className = "" }) {
@@ -1275,26 +1334,47 @@ function Desktop({ session }) {
 
   useEffect(() => {
     if (!loaded) return;
+
     const check = () => {
       const now = Date.now();
       tasks.forEach((t) => {
         if (!t.due_at || t.done || !t.remind_freq || t.remind_freq === "none") return;
         const due = new Date(t.due_at).getTime();
         if (now < due) return;
+
+        if (t.remind_freq === "twice_daily") {
+          const h = new Date(now).getHours();
+          if (h !== 9 && h !== 21) return;
+          const slotKey = `${new Date(now).toDateString()}-${h === 9 ? "AM" : "PM"}`;
+          if (lastRemindedRef.current.get(t.id) !== slotKey) {
+            fireReminder(t);
+            lastRemindedRef.current.set(t.id, slotKey);
+          }
+          return;
+        }
+
         const last = lastRemindedRef.current.get(t.id) || 0;
         const shouldFire =
           t.remind_freq === "once"
             ? last === 0
-            : now - last >= (t.remind_freq === "hourly" ? 3600000 : 86400000);
+            : now - last >= (FREQ_INTERVAL_MS[t.remind_freq] || 86400000);
         if (shouldFire) {
           fireReminder(t);
           lastRemindedRef.current.set(t.id, now);
         }
       });
     };
+
     check();
-    const iv = setInterval(check, 60000);
-    return () => clearInterval(iv);
+    const iv = setInterval(check, 20000);
+    const onReturn = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+    };
   }, [tasks, loaded]);
 
   const close = (k) => setOpen((o) => ({ ...o, [k]: false }));
@@ -1303,13 +1383,13 @@ function Desktop({ session }) {
   const [addingTask, setAddingTask] = useState(false);
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskDiff, setNewTaskDiff] = useState(1);
-  const [newTaskDue, setNewTaskDue] = useState("");
+  const [newTaskDue, setNewTaskDue] = useState(null);
   const [newTaskFreq, setNewTaskFreq] = useState("none");
   const cycleFreq = () => setNewTaskFreq((f) => FREQ_ORDER[(FREQ_ORDER.indexOf(f) + 1) % FREQ_ORDER.length]);
   const submitNewTask = () => {
     if (!newTaskName.trim()) return;
-    addTask(newTaskName.trim(), newTaskDiff, newTaskDue ? new Date(newTaskDue).toISOString() : null, newTaskDue ? newTaskFreq : "none");
-    setNewTaskName(""); setNewTaskDiff(1); setNewTaskDue(""); setNewTaskFreq("none"); setAddingTask(false);
+    addTask(newTaskName.trim(), newTaskDiff, newTaskDue, newTaskDue ? newTaskFreq : "none");
+    setNewTaskName(""); setNewTaskDiff(1); setNewTaskDue(null); setNewTaskFreq("none"); setAddingTask(false);
   };
 
   if (!loaded) return <div className="authLoading">Loading your desktop…</div>;
@@ -1380,11 +1460,7 @@ function Desktop({ session }) {
                       onChange={(e) => setNewTaskName(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && submitNewTask()}
                     />
-                    <input
-                      className="taskAddDate" type="datetime-local"
-                      value={newTaskDue}
-                      onChange={(e) => setNewTaskDue(e.target.value)}
-                    />
+                    <DueDatePicker value={newTaskDue} onChange={setNewTaskDue} />
                     {newTaskDue && (
                       <div className="taskAddDiff" onClick={cycleFreq}>{FREQ_LABEL[newTaskFreq]}</div>
                     )}

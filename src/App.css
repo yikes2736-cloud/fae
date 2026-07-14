@@ -97,9 +97,23 @@
 .taskAddRow{display:flex; gap:4px; align-items:center; flex-wrap:wrap; padding:6px 7px; background:#101014; border-top:1px solid #26262e;}
 .taskAddInput{flex:1; font:11px "MS Sans"; padding:4px; background:#1c1c22; color:#d6d6e0; border:1px solid #444;}
 .taskAddDiff{font:bold 9px "MS Sans"; padding:4px 6px; background:var(--lcd); color:#0a0a0c; cursor:pointer; white-space:nowrap;}
-.taskAddDate{font:10px "MS Sans"; padding:4px; background:#1c1c22; color:#d6d6e0; border:1px solid #444;}
 .dueTag{font-size:9px; padding:3px 5px; background:#2a2a33; color:#9adfc0; white-space:nowrap;}
 .dueTag.over{background:#5c1f1f; color:#ffb3b3;}
+
+/* ---- retro due-date picker ---- */
+.ddp{display:flex; flex-direction:column; gap:4px; background:#101014; border:1px solid #444; padding:5px; flex:1 1 100%;}
+.ddpLcd{font:11px "Courier New",monospace; color:var(--lcd); background:#0a0a0c; padding:3px 6px; text-align:center; letter-spacing:.05em;}
+.ddpQuick{display:flex; gap:3px; flex-wrap:wrap;}
+.ddpBtn{font:bold 9px "MS Sans"; padding:3px 6px; background:var(--face); color:#000; cursor:pointer;
+  border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);}
+.ddpBtn:active{border-color:var(--dark) var(--hi) var(--hi) var(--dark);}
+.ddpBtn.clear{background:#5c1f1f; color:#ffb3b3; border-color:#8a3a3a #200 #200 #8a3a3a;}
+.ddpSteppers{display:flex; gap:10px; padding-top:3px;}
+.ddpStep{display:flex; flex-direction:column; align-items:center; gap:2px; font-size:9px; color:#aaa;}
+.ddpArrows{display:flex; flex-direction:column; gap:1px;}
+.ddpArrows div{width:24px; height:16px; display:grid; place-items:center; background:var(--face); color:#000;
+  cursor:pointer; font-size:9px; border:1px solid #888;}
+.ddpArrows div:active{background:var(--lcd);}
 .transport{display:flex; gap:3px; align-items:center;}
 .tb{height:20px; min-width:26px; padding:0 5px; display:grid; place-items:center; background:var(--face);
   font:9px/1 "MS Sans"; cursor:pointer;
