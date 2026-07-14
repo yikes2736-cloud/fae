@@ -279,6 +279,41 @@ function Digicam({ habits, onAdd }) {
   );
 }
 
+/* ---------- scales its child to fill the available space, preserving aspect ratio ---------- */
+function ScaleToFit({ children, minScale = 0.55, maxScale = 2.6 }) {
+  const outerRef = useRef(null);
+  const innerRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+
+    const recalc = () => {
+      inner.style.transform = "scale(1)";           // measure at natural size first
+      const naturalW = inner.offsetWidth;
+      const naturalH = inner.offsetHeight;
+      if (!naturalW || !naturalH) return;
+      const s = Math.min(outer.clientWidth / naturalW, outer.clientHeight / naturalH);
+      setScale(Math.min(Math.max(s, minScale), maxScale));
+    };
+
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(outer);
+    return () => ro.disconnect();
+  }, [minScale, maxScale]);
+
+  return (
+    <div ref={outerRef} className="scaleFit">
+      <div ref={innerRef} className="scaleFitInner" style={{ transform: `scale(${scale})` }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- theme data ---------- */
 const WALLPAPERS = ["#3a2a4d", "#008080", "#5b3a29", "#1a1a2e", "#c96a8b", "#7aa37a", "#404040"];
 const PATTERNS = [
@@ -524,11 +559,13 @@ export default function App() {
         {open.habitsHub && (
           <Win
             id="habitsHub" icon="i-stats" title="Habits — Streak Cam"
-            init={{ x: 150, y: 50, w: 300, h: 430 }}
+            init={{ x: 150, y: 50, w: 380, h: 480 }}
             z={zMap.habitsHub} focus={focus} onClose={() => close("habitsHub")}
           >
             <div className="content camWrap">
-              <Digicam habits={habits} onAdd={addHabit} />
+              <ScaleToFit>
+                <Digicam habits={habits} onAdd={addHabit} />
+              </ScaleToFit>
             </div>
           </Win>
         )}
