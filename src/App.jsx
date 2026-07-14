@@ -1,31 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { supabase } from "./supabaseClient";
 import "./App.css";
 
 /* ============================================================
    FAE — retro desktop productivity app
    ============================================================ */
 
-const START_BALANCE = 1240;
-
-const INITIAL_TASKS = [
-  { id: 1, name: "Finish EMT2 past paper",        difficulty: 3, done: false },
-  { id: 2, name: "Draft networking viva answers", difficulty: 2, done: false },
-  { id: 3, name: "Email lab report to group",     difficulty: 1, done: false },
-  { id: 4, name: "Debug C linked-list module",    difficulty: 2, done: false },
-  { id: 5, name: "Guitar practice — 20 min",      difficulty: 1, done: false },
-];
-
-// Habits now carry their own point value + a week log (true/false/null = unlogged)
-const DEFAULT_HABITS = [
-  { id: 1, name: "Read 20pg",     points: 5,  week: [true,  true,  true,  false, null, null, null] },
-  { id: 2, name: "Gym",           points: 10, week: [true,  false, true,  true,  null, null, null] },
-  { id: 3, name: "No doomscroll", points: 5,  week: [true,  true,  false, true,  null, null, null] },
-  { id: 4, name: "Leetcode ×1",   points: 15, week: [false, true,  true,  false, null, null, null] },
-  { id: 5, name: "Sleep by 12",   points: 5,  week: [true,  true,  true,  true,  null, null, null] },
-];
-
 const taskPoints = (d) => 10 * d;
 const DIFFICULTY = { 1: "EASY ×1", 2: "MED ×2", 3: "HARD ×3" };
+
+const DEFAULT_THEME = { wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0 };
+const formatDate = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 // Current streak = consecutive `true` days counting back from the most recently logged day
 function currentStreak(week) {
@@ -45,30 +30,10 @@ const BAR_PALETTES = [
   ["#e05a3a", "#3d8ab5", "#c1911d", "#4d9c5c", "#7756b5"],
 ];
 
-// ---- Project Hub data ----
-const DEFAULT_FOLDERS = [
-  { id: 1, name: "Uni Work",      color: "#ffd24d" },
-  { id: 2, name: "Club Agendas",  color: "#6fc3e8" },
-  { id: 3, name: "Self Care",     color: "#7fd18c" },
-];
-const DEFAULT_PROJECT_TASKS = [
-  { id: 1, folderId: 1, group: "EMT2",       name: "Finish Chapter 3",                done: false },
-  { id: 2, folderId: 1, group: "EMT2",       name: "Exam on September 3rd",           done: false },
-  { id: 3, folderId: 1, group: "Networking", name: "Finish Chapter 7",                done: false },
-  { id: 4, folderId: 1, group: "Networking", name: "Submit documentation by 4th July",done: false },
-  { id: 5, folderId: 2, group: "",           name: "Book venue for workshop",         done: false },
-  { id: 6, folderId: 3, group: "",           name: "Skincare routine restock",        done: false },
-];
 const PAINT_PALETTE = [
   "#000000", "#7f7f7f", "#880015", "#ed1c24", "#ff7f27", "#fff200",
   "#22b14c", "#00a2e8", "#3f48cc", "#a349a4", "#ffaec9", "#99d9ea",
   "#c8bfe7", "#b97a57", "#ffffff", "#c3c3c3",
-];
-
-// ---- Journal data ----
-const DEFAULT_ENTRIES = [
-  { id: 1, date: "Jul 2",  caption: "Networking group viva went so much better than I thought — all that prep paid off.", photo: null },
-  { id: 2, date: "Jun 28", caption: "Two-port network lab report submitted. Onto EMT2 revision now.", photo: null },
 ];
 
 /* ---------- icons ---------- */
@@ -443,10 +408,12 @@ function ProjectHub({ folders, tasks, selected, onSelect, onAddFolder, onDeleteF
 }
 
 /* ---------- Journal ---------- */
-function Journal({ entries, wallet, onAdd }) {
+function Journal({ entries, wallet, username, onAdd }) {
   const [compose, setCompose] = useState(false);
   const [caption, setCaption] = useState("");
-  const [photo, setPhoto] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [posting, setPosting] = useState(false);
   const [openId, setOpenId] = useState(null);
   const fileRef = useRef(null);
 
@@ -454,13 +421,15 @@ function Journal({ entries, wallet, onAdd }) {
 
   const handleFile = (e) => {
     const f = e.target.files?.[0];
-    if (f) setPhoto(URL.createObjectURL(f));
+    if (f) { setPhotoFile(f); setPhotoPreview(URL.createObjectURL(f)); }
   };
 
-  const post = () => {
-    if (!caption.trim() && !photo) return;
-    onAdd(caption.trim(), photo);
-    setCaption(""); setPhoto(null); setCompose(false);
+  const post = async () => {
+    if (!caption.trim() && !photoFile) return;
+    setPosting(true);
+    await onAdd(caption.trim(), photoFile);
+    setPosting(false);
+    setCaption(""); setPhotoFile(null); setPhotoPreview(null); setCompose(false);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -476,7 +445,7 @@ function Journal({ entries, wallet, onAdd }) {
           <div><b>{level}</b><span>Level</span></div>
         </div>
       </div>
-      <div className="jrnlName"><b>Diva</b><small>building fae one commit at a time ✨</small></div>
+      <div className="jrnlName"><b>{username}</b><small>building fae one commit at a time ✨</small></div>
 
       <div className="jrnlToolbar">
         <div className="jrnlTool on"><Ico id="i-grid" /></div>
@@ -488,11 +457,11 @@ function Journal({ entries, wallet, onAdd }) {
           <textarea placeholder="What's on your mind…" value={caption} onChange={(e) => setCaption(e.target.value)} />
           <div className="jrnlComposeRow">
             <label className="jrnlUpload">
-              {photo ? "Change photo" : "Add photo"}
+              {photoFile ? "Change photo" : "Add photo"}
               <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} hidden />
             </label>
-            {photo && <img className="jrnlPreview" src={photo} alt="" />}
-            <div className="jrnlPostBtn" onClick={post}>Post</div>
+            {photoPreview && <img className="jrnlPreview" src={photoPreview} alt="" />}
+            <div className="jrnlPostBtn" onClick={post}>{posting ? "Posting…" : "Post"}</div>
           </div>
         </div>
       )}
@@ -551,26 +520,120 @@ const SCREENS = [
   { s: "#c9a8cf", ink: "#361a3c", e: "#94769a" },
 ];
 
+/* ---------- login / signup screen ---------- */
+function LoginScreen() {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(""); setNotice(""); setBusy(true);
+
+    const { error } =
+      mode === "login"
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password });
+
+    setBusy(false);
+    if (error) { setError(error.message); return; }
+    if (mode === "signup") setNotice("Account created — check your email to confirm, then log in.");
+  };
+
+  return (
+    <div className="authScreen">
+      <form className="authWin" onSubmit={submit}>
+        <div className="authBar"><Ico id="i-fae" /><span>Fae — {mode === "login" ? "Log In" : "Sign Up"}</span></div>
+        <div className="authBody">
+          <input type="email" placeholder="Email" value={email}
+                 onChange={(e) => setEmail(e.target.value)} required />
+          <input type="password" placeholder="Password (min 6 characters)" value={password}
+                 onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          {error && <div className="authError">{error}</div>}
+          {notice && <div className="authNotice">{notice}</div>}
+          <button type="submit" disabled={busy}>
+            {busy ? "…" : mode === "login" ? "Log In" : "Create Account"}
+          </button>
+          <div className="authSwitch" onClick={() => { setMode((m) => (m === "login" ? "signup" : "login")); setError(""); setNotice(""); }}>
+            {mode === "login" ? "New here? Create an account" : "Already have one? Log in"}
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 /* ============================================================ */
-export default function App() {
-  const [tasks, setTasks]   = useState(INITIAL_TASKS);
-  const [habits, setHabits] = useState(DEFAULT_HABITS);
-  const [folders, setFolders]           = useState(DEFAULT_FOLDERS);
-  const [projectTasks, setProjectTasks] = useState(DEFAULT_PROJECT_TASKS);
-  const [selectedFolder, setSelectedFolder] = useState(DEFAULT_FOLDERS[0]?.id ?? null);
-  const [journalEntries, setJournalEntries] = useState(DEFAULT_ENTRIES);
-  const [wallet, setWallet] = useState(START_BALANCE);
-  const [shown, setShown]   = useState(START_BALANCE);
+function Desktop({ session }) {
+  const [tasks, setTasks]   = useState([]);
+  const [habits, setHabits] = useState([]);
+  const [folders, setFolders]           = useState([]);
+  const [projectTasks, setProjectTasks] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [wallet, setWallet] = useState(0);
+  const [shown, setShown]   = useState(0);
   const [floatText, setFloat] = useState(null);
   const [hyped, setHyped]   = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const [open, setOpen]     = useState({ tasks: true, habits: true, habitsHub: false, cpl: false, projectHub: false, journal: false });
   const [zTop, setZTop]     = useState(10);
   const [zMap, setZMap]     = useState({ tasks: 3, habits: 2, habitsHub: 4, tama: 5, cpl: 9, projectHub: 6, journal: 7 });
   const [startOpen, setStartOpen] = useState(false);
   const [tab, setTab]       = useState("desktop");
-  const [theme, setTheme]   = useState({ wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0 });
+  const [theme, setTheme]   = useState(DEFAULT_THEME);
   const [clock, setClock]   = useState("");
+
+  const uid = session.user.id;
+
+  // ---- fetch everything for this user, once, on load ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [profileRes, tasksRes, habitsRes, foldersRes, projectRes, entriesRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", uid).single(),
+        supabase.from("tasks").select("*").eq("user_id", uid).order("created_at"),
+        supabase.from("habits").select("*").eq("user_id", uid).order("created_at"),
+        supabase.from("folders").select("*").eq("user_id", uid).order("created_at"),
+        supabase.from("project_tasks").select("*").eq("user_id", uid).order("created_at"),
+        supabase.from("journal_entries").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
+      ]);
+      if (cancelled) return;
+
+      if (profileRes.data) {
+        setWallet(profileRes.data.wallet ?? 0);
+        setShown(profileRes.data.wallet ?? 0);
+        setTheme(profileRes.data.theme || DEFAULT_THEME);
+      }
+      setTasks(tasksRes.data || []);
+      setHabits((habitsRes.data || []).map((h) => ({ ...h, week: h.week || [null, null, null, null, null, null, null] })));
+      setFolders(foldersRes.data || []);
+      setSelectedFolder(foldersRes.data?.[0]?.id ?? null);
+      setProjectTasks(
+        (projectRes.data || []).map((t) => ({ id: t.id, folderId: t.folder_id, group: t.group_name, name: t.name, done: t.done }))
+      );
+      setJournalEntries(
+        (entriesRes.data || []).map((e) => ({ id: e.id, date: formatDate(e.created_at), caption: e.caption, photo: e.photo_url }))
+      );
+      setLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [uid]);
+
+  // ---- persist wallet + theme back to the profile row whenever they change ----
+  useEffect(() => {
+    if (!loaded) return;
+    supabase.from("profiles").update({ wallet }).eq("id", uid);
+  }, [wallet, loaded, uid]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    supabase.from("profiles").update({ theme }).eq("id", uid);
+  }, [theme, loaded, uid]);
 
   const focus = useCallback((id) => {
     setZTop((t) => {
@@ -622,62 +685,116 @@ export default function App() {
     setTimeout(() => setHyped(false), 1500);
   };
 
-  const toggleTask = (id) => {
-    setTasks((ts) =>
-      ts.map((t) => {
-        if (t.id !== id) return t;
-        const done = !t.done;
-        award(done ? taskPoints(t.difficulty) : -taskPoints(t.difficulty));
-        return { ...t, done };
-      })
-    );
+  const toggleTask = async (id) => {
+    const t = tasks.find((x) => x.id === id);
+    if (!t) return;
+    const done = !t.done;
+    award(done ? taskPoints(t.difficulty) : -taskPoints(t.difficulty));
+    setTasks((ts) => ts.map((x) => (x.id === id ? { ...x, done } : x)));
+    await supabase.from("tasks").update({ done }).eq("id", id);
   };
 
-  const cycleHabit = (r, c) => {
-    setHabits((hs) =>
-      hs.map((h, i) => {
-        if (i !== r) return h;
-        const v = h.week[c];
-        let next, delta;
-        if (v === null)  { next = true;  delta = h.points;  }
-        else if (v === true) { next = false; delta = -h.points; }
-        else { next = null; delta = 0; }
-        if (delta) award(delta);
-        const week = [...h.week];
-        week[c] = next;
-        return { ...h, week };
-      })
-    );
+  const addTask = async (name, difficulty) => {
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({ user_id: uid, name, difficulty, done: false })
+      .select()
+      .single();
+    if (!error && data) setTasks((ts) => [...ts, data]);
   };
 
-  const addHabit = (name, points) => {
-    setHabits((hs) => [...hs, { id: Date.now(), name, points, week: [null, null, null, null, null, null, null] }]);
+  const deleteTask = async (id) => {
+    setTasks((ts) => ts.filter((t) => t.id !== id));
+    await supabase.from("tasks").delete().eq("id", id);
+  };
+
+  const cycleHabit = async (habitId, dayIndex) => {
+    const h = habits.find((x) => x.id === habitId);
+    if (!h) return;
+    const v = h.week[dayIndex];
+    let next, delta;
+    if (v === null)  { next = true;  delta = h.points;  }
+    else if (v === true) { next = false; delta = -h.points; }
+    else { next = null; delta = 0; }
+    if (delta) award(delta);
+    const week = [...h.week];
+    week[dayIndex] = next;
+    setHabits((hs) => hs.map((x) => (x.id === habitId ? { ...x, week } : x)));
+    await supabase.from("habits").update({ week }).eq("id", habitId);
+  };
+
+  const addHabit = async (name, points) => {
+    const week = [null, null, null, null, null, null, null];
+    const { data, error } = await supabase
+      .from("habits")
+      .insert({ user_id: uid, name, points, week })
+      .select()
+      .single();
+    if (!error && data) setHabits((hs) => [...hs, data]);
   };
 
   // ---- Project Hub ----
-  const addFolder = (name) => {
-    const nf = { id: Date.now(), name, color: PAINT_PALETTE[folders.length % PAINT_PALETTE.length] };
-    setFolders((fs) => [...fs, nf]);
-    setSelectedFolder(nf.id);
+  const addFolder = async (name) => {
+    const color = PAINT_PALETTE[folders.length % PAINT_PALETTE.length];
+    const { data, error } = await supabase
+      .from("folders")
+      .insert({ user_id: uid, name, color })
+      .select()
+      .single();
+    if (!error && data) { setFolders((fs) => [...fs, data]); setSelectedFolder(data.id); }
   };
-  const deleteFolder = (id) => {
+  const deleteFolder = async (id) => {
     setFolders((fs) => fs.filter((f) => f.id !== id));
     setProjectTasks((ts) => ts.map((t) => (t.folderId === id ? { ...t, folderId: null } : t)));
     setSelectedFolder((sf) => (sf === id ? null : sf));
+    await supabase.from("folders").delete().eq("id", id); // project_tasks.folder_id auto-nulls server-side (FK ON DELETE SET NULL)
   };
-  const setFolderColor = (id, color) => setFolders((fs) => fs.map((f) => (f.id === id ? { ...f, color } : f)));
-  const addProjectTask = (folderId, group, name) => {
-    setProjectTasks((ts) => [...ts, { id: Date.now(), folderId, group: group?.trim() || "", name, done: false }]);
+  const setFolderColor = async (id, color) => {
+    setFolders((fs) => fs.map((f) => (f.id === id ? { ...f, color } : f)));
+    await supabase.from("folders").update({ color }).eq("id", id);
   };
-  const toggleProjectTask = (id) => setProjectTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  const deleteProjectTask = (id) => setProjectTasks((ts) => ts.filter((t) => t.id !== id));
+  const addProjectTask = async (folderId, group, name) => {
+    const group_name = group?.trim() || "";
+    const { data, error } = await supabase
+      .from("project_tasks")
+      .insert({ user_id: uid, folder_id: folderId, group_name, name, done: false })
+      .select()
+      .single();
+    if (!error && data) {
+      setProjectTasks((ts) => [...ts, { id: data.id, folderId: data.folder_id, group: data.group_name, name: data.name, done: data.done }]);
+    }
+  };
+  const toggleProjectTask = async (id) => {
+    const t = projectTasks.find((x) => x.id === id);
+    if (!t) return;
+    const done = !t.done;
+    setProjectTasks((ts) => ts.map((x) => (x.id === id ? { ...x, done } : x)));
+    await supabase.from("project_tasks").update({ done }).eq("id", id);
+  };
+  const deleteProjectTask = async (id) => {
+    setProjectTasks((ts) => ts.filter((t) => t.id !== id));
+    await supabase.from("project_tasks").delete().eq("id", id);
+  };
 
   // ---- Journal ----
-  const addJournalEntry = (caption, photo) => {
-    setJournalEntries((js) => [
-      { id: Date.now(), date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }), caption, photo },
-      ...js,
-    ]);
+  const addJournalEntry = async (caption, file) => {
+    let photo_url = null;
+    if (file) {
+      const path = `${uid}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from("journal-photos").upload(path, file);
+      if (!upErr) {
+        const { data } = supabase.storage.from("journal-photos").getPublicUrl(path);
+        photo_url = data.publicUrl;
+      }
+    }
+    const { data: row, error } = await supabase
+      .from("journal_entries")
+      .insert({ user_id: uid, caption, photo_url })
+      .select()
+      .single();
+    if (!error && row) {
+      setJournalEntries((js) => [{ id: row.id, date: formatDate(row.created_at), caption: row.caption, photo: row.photo_url }, ...js]);
+    }
   };
 
   const doneTasks = tasks.filter((t) => t.done);
@@ -691,6 +808,17 @@ export default function App() {
 
   const close = (k) => setOpen((o) => ({ ...o, [k]: false }));
   const openWin = (k) => { setOpen((o) => ({ ...o, [k]: true })); focus(k); };
+
+  const [addingTask, setAddingTask] = useState(false);
+  const [newTaskName, setNewTaskName] = useState("");
+  const [newTaskDiff, setNewTaskDiff] = useState(1);
+  const submitNewTask = () => {
+    if (!newTaskName.trim()) return;
+    addTask(newTaskName.trim(), newTaskDiff);
+    setNewTaskName(""); setNewTaskDiff(1); setAddingTask(false);
+  };
+
+  if (!loaded) return <div className="authLoading">Loading your desktop…</div>;
 
   return (
     <div className="fae" onClick={() => setStartOpen(false)}>
@@ -730,14 +858,34 @@ export default function App() {
               </div>
 
               <div className="list">
+                {tasks.length === 0 && !addingTask && (
+                  <div className="hubEmpty" style={{ color: "#8d8d9c", padding: 14 }}>
+                    No tasks yet — hit + NEW below to add your first one.
+                  </div>
+                )}
                 {tasks.map((t) => (
                   <div key={t.id} className={`row ${t.done ? "done" : ""}`}>
                     <div className="cb" onClick={() => toggleTask(t.id)}>{t.done ? "✓" : ""}</div>
                     <div className="name">{t.name}</div>
                     <div className={`tag ${t.difficulty === 3 ? "hard" : ""}`}>{DIFFICULTY[t.difficulty]}</div>
                     <div className="pts">+{taskPoints(t.difficulty)}</div>
+                    <div className="rowDel" onClick={() => deleteTask(t.id)}>×</div>
                   </div>
                 ))}
+                {addingTask && (
+                  <div className="taskAddRow">
+                    <input
+                      className="taskAddInput" placeholder="New task…" autoFocus
+                      value={newTaskName}
+                      onChange={(e) => setNewTaskName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && submitNewTask()}
+                    />
+                    <div className="taskAddDiff" onClick={() => setNewTaskDiff((d) => (d === 3 ? 1 : d + 1))}>
+                      {DIFFICULTY[newTaskDiff]}
+                    </div>
+                    <div className="tb" onClick={submitNewTask}>Add</div>
+                  </div>
+                )}
               </div>
 
               <div className="transport">
@@ -745,7 +893,7 @@ export default function App() {
                 <div className="tb">▶</div>
                 <div className="tb">▶|</div>
                 <div className="prog"><i style={{ width: `${pct * 100}%` }} /></div>
-                <div className="tb">+ NEW</div>
+                <div className="tb" onClick={() => setAddingTask((a) => !a)}>+ NEW</div>
               </div>
             </div>
           </Win>
@@ -772,6 +920,9 @@ export default function App() {
                   <span />
                   {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <span key={i}>{d}</span>)}
                 </div>
+                {habits.length === 0 && (
+                  <div className="hubEmpty" style={{ padding: 8 }}>No habits yet — add one from the Habits icon on the desktop.</div>
+                )}
                 {habits.map((h, r) => (
                   <div className="hrow" key={h.id}>
                     <div className="hname">{h.name}</div>
@@ -779,7 +930,7 @@ export default function App() {
                       <div
                         key={c}
                         className={`cell ${v === true ? "done" : v === false ? "miss" : ""}`}
-                        onClick={() => cycleHabit(r, c)}
+                        onClick={() => cycleHabit(h.id, c)}
                       >
                         {v === true ? "✔" : v === false ? "✕" : ""}
                       </div>
@@ -839,7 +990,7 @@ export default function App() {
             z={zMap.journal} focus={focus} onClose={() => close("journal")}
           >
             <div className="content">
-              <Journal entries={journalEntries} wallet={shown} onAdd={addJournalEntry} />
+              <Journal entries={journalEntries} wallet={shown} username={session.user.email.split("@")[0]} onAdd={addJournalEntry} />
             </div>
           </Win>
         )}
@@ -969,8 +1120,8 @@ export default function App() {
             <div className="profile">
               <div className="avatar" />
               <div>
-                <b>Diva</b>
-                <small>{shown.toLocaleString()} pts · Level 4</small>
+                <b>{session.user.email.split("@")[0]}</b>
+                <small>{shown.toLocaleString()} pts · Level {Math.max(1, Math.floor(shown / 500) + 1)}</small>
               </div>
             </div>
             <div className="smitem" onClick={() => { openWin("habitsHub"); setStartOpen(false); }}>
@@ -987,7 +1138,7 @@ export default function App() {
             <div className="smitem" onClick={() => { openWin("cpl"); setStartOpen(false); }}>
               <Ico id="i-cpl" />Control Panel…
             </div>
-            <div className="smitem"><Ico id="i-bin" />Log Off…</div>
+            <div className="smitem" onClick={() => supabase.auth.signOut()}><Ico id="i-bin" />Log Off…</div>
           </div>
         </div>
       )}
@@ -1008,4 +1159,19 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+/* ---------- top-level: decides Login vs Desktop ---------- */
+export default function App() {
+  const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  if (session === undefined) return <div className="authLoading">Loading Fae…</div>;
+  if (!session) return <LoginScreen />;
+  return <Desktop session={session} />;
 }

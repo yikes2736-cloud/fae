@@ -18,6 +18,27 @@
 }
 .desktop{position:absolute; inset:0 0 30px 0; overflow:hidden;}
 
+/* ---- login / signup ---- */
+.authLoading{position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  background:var(--desk); color:#fff; font:14px "MS Sans";}
+.authScreen{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--desk);}
+.authWin{width:280px; background:var(--face); padding:3px;
+  border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);
+  box-shadow:inset 1px 1px 0 var(--light), inset -1px -1px 0 var(--shadow);}
+.authBar{height:20px; display:flex; align-items:center; gap:6px; padding:0 6px;
+  background:linear-gradient(90deg,var(--title),var(--title2)); color:#fff; font:bold 12px "MS Sans";}
+.authBar svg{width:16px; height:16px;}
+.authBody{display:flex; flex-direction:column; gap:8px; padding:14px;}
+.authBody input{padding:6px; font:12px "MS Sans";
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.authBody button{padding:7px; font:bold 12px "MS Sans"; background:var(--face); cursor:pointer;
+  border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);}
+.authBody button:active{border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.authBody button:disabled{opacity:.6; cursor:default;}
+.authError{color:#a00; font-size:11px;}
+.authNotice{color:#0a7c2f; font-size:11px;}
+.authSwitch{font-size:11px; color:var(--title); text-decoration:underline; cursor:pointer; text-align:center;}
+
 /* ---- desktop icons ---- */
 .dock{position:absolute; top:8px; left:6px; width:76px; display:flex; flex-direction:column; gap:2px;}
 .icon{display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 2px; text-align:center; color:#fff; cursor:pointer;}
@@ -71,6 +92,11 @@
 .tag{font:bold 9px/1 "MS Sans"; padding:3px 4px; background:var(--lcd); color:#0a0a0c;}
 .tag.hard{background:var(--tama-b); color:#fff;}
 .pts{font:12px "Courier New",monospace; color:var(--lcd); min-width:38px; text-align:right;}
+.rowDel{color:#666; cursor:pointer; padding:0 4px; font-size:13px;}
+.rowDel:hover{color:#ff5c5c;}
+.taskAddRow{display:flex; gap:4px; align-items:center; padding:6px 7px; background:#101014; border-top:1px solid #26262e;}
+.taskAddInput{flex:1; font:11px "MS Sans"; padding:4px; background:#1c1c22; color:#d6d6e0; border:1px solid #444;}
+.taskAddDiff{font:bold 9px "MS Sans"; padding:4px 6px; background:var(--lcd); color:#0a0a0c; cursor:pointer; white-space:nowrap;}
 .transport{display:flex; gap:3px; align-items:center;}
 .tb{height:20px; min-width:26px; padding:0 5px; display:grid; place-items:center; background:var(--face);
   font:9px/1 "MS Sans"; cursor:pointer;
