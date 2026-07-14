@@ -15,21 +15,35 @@ const INITIAL_TASKS = [
   { id: 5, name: "Guitar practice — 20 min",      difficulty: 1, done: false },
 ];
 
-const HABIT_NAMES = ["Read 20pg", "Gym", "No doomscroll", "Leetcode ×1", "Sleep by 12"];
-
-// null = not logged, true = done, false = missed. First 4 days are seeded history.
-const INITIAL_HABITS = [
-  [true,  true,  true,  false, null, null, null],
-  [true,  false, true,  true,  null, null, null],
-  [true,  true,  false, true,  null, null, null],
-  [false, true,  true,  false, null, null, null],
-  [true,  true,  true,  true,  null, null, null],
+// Habits now carry their own point value + a week log (true/false/null = unlogged)
+const DEFAULT_HABITS = [
+  { id: 1, name: "Read 20pg",     points: 5,  week: [true,  true,  true,  false, null, null, null] },
+  { id: 2, name: "Gym",           points: 10, week: [true,  false, true,  true,  null, null, null] },
+  { id: 3, name: "No doomscroll", points: 5,  week: [true,  true,  false, true,  null, null, null] },
+  { id: 4, name: "Leetcode ×1",   points: 15, week: [false, true,  true,  false, null, null, null] },
+  { id: 5, name: "Sleep by 12",   points: 5,  week: [true,  true,  true,  true,  null, null, null] },
 ];
 
-// Points: tasks = 10 × difficulty, habits = flat 5
 const taskPoints = (d) => 10 * d;
-const HABIT_POINTS = 5;
 const DIFFICULTY = { 1: "EASY ×1", 2: "MED ×2", 3: "HARD ×3" };
+
+// Current streak = consecutive `true` days counting back from the most recently logged day
+function currentStreak(week) {
+  let streak = 0;
+  for (let i = week.length - 1; i >= 0; i--) {
+    const v = week[i];
+    if (v === null) continue;      // not logged yet, skip past
+    if (v === true) streak++;
+    else break;                    // a miss ends the streak
+  }
+  return streak;
+}
+
+const BAR_PALETTES = [
+  ["#4f7df0", "#a98bf0", "#f0a94f", "#f0d64f", "#4fd6c0"],
+  ["#ff6fa8", "#8a6fd6", "#5ac8e0", "#f5c542", "#7fd18c"],
+  ["#e05a3a", "#3d8ab5", "#c1911d", "#4d9c5c", "#7756b5"],
+];
 
 /* ---------- icons ---------- */
 const Icons = () => (
@@ -59,7 +73,6 @@ function Win({ id, title, icon, menu, footer, children, init, z, focus, onClose,
     const r = el.getBoundingClientRect();
     const ox = e.clientX - r.left;
     const oy = e.clientY - r.top;
-    e.currentTarget.setPointerCapture?.(e.pointerId);
 
     const move = (ev) => {
       if (mode === "move") {
@@ -108,7 +121,7 @@ function Win({ id, title, icon, menu, footer, children, init, z, focus, onClose,
 }
 
 /* ---------- the pet ---------- */
-function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onStats, z, focus }) {
+function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onTweak, z, focus }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x: window.innerWidth - 250, y: 34 });
 
@@ -168,7 +181,99 @@ function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onStats, z, f
       <div className="pads">
         <div className="pad" onClick={onStore}>STORE</div>
         <div className="pad" onClick={onFeed}>FEED</div>
-        <div className="pad" onClick={onStats}>STATS</div>
+        <div className="pad" onClick={onTweak}>TWEAK</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- digicam: streak chart screen ---------- */
+function StreakChart({ habits, palette }) {
+  const streaks = habits.map((h) => currentStreak(h.week));
+  const max = Math.max(1, ...streaks);
+  return (
+    <div className="camLcd">
+      <div className="camChartLabel">DAYS<br />ACHIEVED</div>
+      <div className="camBars">
+        {habits.map((h, i) => (
+          <div className="camBarCol" key={h.id}>
+            <div className="camBarNum">{streaks[i]}</div>
+            <div
+              className="camBar"
+              style={{ height: `${(streaks[i] / max) * 100}%`, background: palette[i % palette.length] }}
+            />
+            <div className="camBarLabel">{h.name}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- digicam: add-habit screen ---------- */
+function AddHabitScreen({ onAdd }) {
+  const [name, setName] = useState("");
+  const [diff, setDiff] = useState(1);
+  const pts = diff === 3 ? 15 : diff === 2 ? 10 : 5;
+
+  const save = () => {
+    if (!name.trim()) return;
+    onAdd(name.trim(), pts);
+    setName("");
+    setDiff(1);
+  };
+
+  return (
+    <div className="camLcd camAdd">
+      <div className="camAddLabel">NEW HABIT</div>
+      <input
+        className="camInput"
+        placeholder="Habit name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && save()}
+      />
+      <div className="camDiffRow">
+        <div className={`camDiff ${diff === 1 ? "on" : ""}`} onClick={() => setDiff(1)}>EASY +5</div>
+        <div className={`camDiff ${diff === 2 ? "on" : ""}`} onClick={() => setDiff(2)}>MED +10</div>
+        <div className={`camDiff ${diff === 3 ? "on" : ""}`} onClick={() => setDiff(3)}>HARD +15</div>
+      </div>
+      <div className="camShutter" onClick={save}>●</div>
+      <div className="camAddHint">Tap the shutter to save</div>
+    </div>
+  );
+}
+
+/* ---------- digicam device ---------- */
+function Digicam({ habits, onAdd }) {
+  const [page, setPage] = useState("chart");
+  const [paletteIdx, setPaletteIdx] = useState(0);
+  const palette = BAR_PALETTES[paletteIdx];
+  const flip = () => setPage((p) => (p === "chart" ? "add" : "chart"));
+
+  return (
+    <div className="camBody">
+      <div className="camTopRow"><div className="camDot" /></div>
+      <div className="camMain">
+        <div className="camScreen">
+          {page === "chart" ? <StreakChart habits={habits} palette={palette} /> : <AddHabitScreen onAdd={onAdd} />}
+        </div>
+        <div className="camSide">
+          <div className="camRocker" onClick={flip}><span>W</span><span>T</span></div>
+          <div className="camStars">
+            <div className="camStar" onClick={() => setPaletteIdx((p) => (p + 1) % BAR_PALETTES.length)}>★</div>
+            <div className="camStar" onClick={() => setPaletteIdx((p) => (p + 1) % BAR_PALETTES.length)}>★</div>
+          </div>
+          <div className="camDial" onClick={flip}>
+            <div className="camArrowL">◀</div>
+            <div className="lbl">DISP</div>
+            <div className="camArrowR">▶</div>
+          </div>
+        </div>
+      </div>
+      <div className="camBottomRow">
+        <span onClick={flip} style={{ cursor: "pointer" }}>MENU</span>
+        <span title="Delete habit — coming soon">🗑</span>
       </div>
     </div>
   );
@@ -208,15 +313,15 @@ const SCREENS = [
 /* ============================================================ */
 export default function App() {
   const [tasks, setTasks]   = useState(INITIAL_TASKS);
-  const [habits, setHabits] = useState(INITIAL_HABITS);
+  const [habits, setHabits] = useState(DEFAULT_HABITS);
   const [wallet, setWallet] = useState(START_BALANCE);
-  const [shown, setShown]   = useState(START_BALANCE);   // animated counter
+  const [shown, setShown]   = useState(START_BALANCE);
   const [floatText, setFloat] = useState(null);
   const [hyped, setHyped]   = useState(false);
 
-  const [open, setOpen]     = useState({ tasks: true, habits: true, cpl: false });
+  const [open, setOpen]     = useState({ tasks: true, habits: true, habitsHub: false, cpl: false });
   const [zTop, setZTop]     = useState(10);
-  const [zMap, setZMap]     = useState({ tasks: 3, habits: 2, tama: 5, cpl: 9 });
+  const [zMap, setZMap]     = useState({ tasks: 3, habits: 2, habitsHub: 4, tama: 5, cpl: 9 });
   const [startOpen, setStartOpen] = useState(false);
   const [tab, setTab]       = useState("desktop");
   const [theme, setTheme]   = useState({ wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0 });
@@ -230,7 +335,6 @@ export default function App() {
     });
   }, []);
 
-  /* animated point counter */
   useEffect(() => {
     if (shown === wallet) return;
     const t = setInterval(() => {
@@ -243,7 +347,6 @@ export default function App() {
     return () => clearInterval(t);
   }, [wallet, shown]);
 
-  /* clock */
   useEffect(() => {
     const tick = () =>
       setClock(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
@@ -252,7 +355,6 @@ export default function App() {
     return () => clearInterval(t);
   }, []);
 
-  /* apply theme to CSS variables */
   useEffect(() => {
     const r = document.documentElement.style;
     r.setProperty("--desk", WALLPAPERS[theme.wall]);
@@ -268,7 +370,6 @@ export default function App() {
     r.setProperty("--screen-edge", sc.e);
   }, [theme]);
 
-  /* earning / spending */
   const award = (n) => {
     setWallet((w) => w + n);
     setFloat({ text: (n > 0 ? "+" : "") + n, key: Date.now() });
@@ -289,25 +390,33 @@ export default function App() {
 
   const cycleHabit = (r, c) => {
     setHabits((hs) =>
-      hs.map((row, i) => {
-        if (i !== r) return row;
-        return row.map((v, j) => {
-          if (j !== c) return v;
-          if (v === null)  { award(HABIT_POINTS);  return true;  }  // blank → done
-          if (v === true)  { award(-HABIT_POINTS); return false; }  // done → missed
-          return null;                                              // missed → blank
-        });
+      hs.map((h, i) => {
+        if (i !== r) return h;
+        const v = h.week[c];
+        let next, delta;
+        if (v === null)  { next = true;  delta = h.points;  }
+        else if (v === true) { next = false; delta = -h.points; }
+        else { next = null; delta = 0; }
+        if (delta) award(delta);
+        const week = [...h.week];
+        week[c] = next;
+        return { ...h, week };
       })
     );
   };
 
-  /* derived */
+  const addHabit = (name, points) => {
+    setHabits((hs) => [...hs, { id: Date.now(), name, points, week: [null, null, null, null, null, null, null] }]);
+  };
+
   const doneTasks = tasks.filter((t) => t.done);
   const earned    = doneTasks.reduce((s, t) => s + taskPoints(t.difficulty), 0);
   const totalPts  = tasks.reduce((s, t) => s + taskPoints(t.difficulty), 0);
   const pct       = tasks.length ? doneTasks.length / tasks.length : 0;
-  const ticked    = habits.flat().filter((v) => v === true).length;
-  const openDays  = habits.flat().filter((v) => v === null).length;
+
+  const allDays   = habits.flatMap((h) => h.week);
+  const ticked    = allDays.filter((v) => v === true).length;
+  const openDays  = allDays.filter((v) => v === null).length;
 
   const close = (k) => setOpen((o) => ({ ...o, [k]: false }));
   const openWin = (k) => { setOpen((o) => ({ ...o, [k]: true })); focus(k); };
@@ -319,10 +428,10 @@ export default function App() {
       <div className="desktop">
         {/* ---- icons ---- */}
         <div className="dock">
-          <div className="icon"><Ico id="i-space" /><span>Spaces</span></div>
-          <div className="icon"><Ico id="i-page" /><span>Pages</span></div>
+          <div className="icon" onClick={() => openWin("habitsHub")}><Ico id="i-stats" /><span>Habits</span></div>
+          <div className="icon"><Ico id="i-space" /><span>Tasks</span></div>
           <div className="icon"><Ico id="i-store" /><span>Store</span></div>
-          <div className="icon"><Ico id="i-stats" /><span>Stats</span></div>
+          <div className="icon"><Ico id="i-page" /><span>Journal</span></div>
           <div className="icon" onClick={() => openWin("cpl")}><Ico id="i-cpl" /><span>Settings</span></div>
         </div>
 
@@ -371,7 +480,7 @@ export default function App() {
           </Win>
         )}
 
-        {/* ---- HABITS ---- */}
+        {/* ---- HABITS (today widget) ---- */}
         {open.habits && (
           <Win
             id="habits" icon="i-mine" title="Habits — This Week"
@@ -392,10 +501,10 @@ export default function App() {
                   <span />
                   {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <span key={i}>{d}</span>)}
                 </div>
-                {habits.map((row, r) => (
-                  <div className="hrow" key={r}>
-                    <div className="hname">{HABIT_NAMES[r]}</div>
-                    {row.map((v, c) => (
+                {habits.map((h, r) => (
+                  <div className="hrow" key={h.id}>
+                    <div className="hname">{h.name}</div>
+                    {h.week.map((v, c) => (
                       <div
                         key={c}
                         className={`cell ${v === true ? "done" : v === false ? "miss" : ""}`}
@@ -407,6 +516,19 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+          </Win>
+        )}
+
+        {/* ---- HABITS HUB (digicam) ---- */}
+        {open.habitsHub && (
+          <Win
+            id="habitsHub" icon="i-stats" title="Habits — Streak Cam"
+            init={{ x: 150, y: 50, w: 300, h: 430 }}
+            z={zMap.habitsHub} focus={focus} onClose={() => close("habitsHub")}
+          >
+            <div className="content camWrap">
+              <Digicam habits={habits} onAdd={addHabit} />
             </div>
           </Win>
         )}
@@ -524,7 +646,7 @@ export default function App() {
           focus={focus}
           onStore={() => setFloat({ text: "STORE", key: Date.now() })}
           onFeed={() => { setHyped(true); setTimeout(() => setHyped(false), 1500); }}
-          onStats={() => openWin("cpl")}
+          onTweak={() => openWin("cpl")}
         />
       </div>
 
@@ -540,15 +662,12 @@ export default function App() {
                 <small>{shown.toLocaleString()} pts · Level 4</small>
               </div>
             </div>
-            <div className="smitem"><Ico id="i-space" />Spaces</div>
-            <div className="smitem"><Ico id="i-page" />New Page</div>
+            <div className="smitem" onClick={() => { openWin("habitsHub"); setStartOpen(false); }}>
+              <Ico id="i-stats" />Habits
+            </div>
+            <div className="smitem"><Ico id="i-space" />Tasks</div>
             <div className="smitem"><Ico id="i-store" />Store</div>
-            <div className="smitem" onClick={() => { openWin("tasks"); setStartOpen(false); }}>
-              <Ico id="i-play" />Task Player
-            </div>
-            <div className="smitem" onClick={() => { openWin("habits"); setStartOpen(false); }}>
-              <Ico id="i-mine" />Habits
-            </div>
+            <div className="smitem"><Ico id="i-page" />Journal</div>
             <div className="smsep" />
             <div className="smitem" onClick={() => { openWin("cpl"); setStartOpen(false); }}>
               <Ico id="i-cpl" />Control Panel…
