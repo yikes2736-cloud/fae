@@ -45,6 +45,32 @@ const BAR_PALETTES = [
   ["#e05a3a", "#3d8ab5", "#c1911d", "#4d9c5c", "#7756b5"],
 ];
 
+// ---- Project Hub data ----
+const DEFAULT_FOLDERS = [
+  { id: 1, name: "Uni Work",      color: "#ffd24d" },
+  { id: 2, name: "Club Agendas",  color: "#6fc3e8" },
+  { id: 3, name: "Self Care",     color: "#7fd18c" },
+];
+const DEFAULT_PROJECT_TASKS = [
+  { id: 1, folderId: 1, group: "EMT2",       name: "Finish Chapter 3",                done: false },
+  { id: 2, folderId: 1, group: "EMT2",       name: "Exam on September 3rd",           done: false },
+  { id: 3, folderId: 1, group: "Networking", name: "Finish Chapter 7",                done: false },
+  { id: 4, folderId: 1, group: "Networking", name: "Submit documentation by 4th July",done: false },
+  { id: 5, folderId: 2, group: "",           name: "Book venue for workshop",         done: false },
+  { id: 6, folderId: 3, group: "",           name: "Skincare routine restock",        done: false },
+];
+const PAINT_PALETTE = [
+  "#000000", "#7f7f7f", "#880015", "#ed1c24", "#ff7f27", "#fff200",
+  "#22b14c", "#00a2e8", "#3f48cc", "#a349a4", "#ffaec9", "#99d9ea",
+  "#c8bfe7", "#b97a57", "#ffffff", "#c3c3c3",
+];
+
+// ---- Journal data ----
+const DEFAULT_ENTRIES = [
+  { id: 1, date: "Jul 2",  caption: "Networking group viva went so much better than I thought — all that prep paid off.", photo: null },
+  { id: 2, date: "Jun 28", caption: "Two-port network lab report submitted. Onto EMT2 revision now.", photo: null },
+];
+
 /* ---------- icons ---------- */
 const Icons = () => (
   <svg style={{ display: "none" }} aria-hidden>
@@ -57,6 +83,8 @@ const Icons = () => (
     <symbol id="i-mine" viewBox="0 0 16 16"><path d="M1 1h14v14H1z" fill="#c0c0c0" stroke="#808080"/><path d="M4 8l2 3 5-6" fill="none" stroke="#0a7c2f" strokeWidth="2"/></symbol>
     <symbol id="i-cpl" viewBox="0 0 16 16"><path d="M2 2h12v12H2z" fill="#c0c0c0" stroke="#000"/><path d="M4 5h8v2H4zM4 9h8v2H4z" fill="#000080"/></symbol>
     <symbol id="i-fae" viewBox="0 0 16 16"><path d="M2 2h12v12H2z" fill="#ff4fa3"/><path d="M5 4h6v2H7v2h3v2H7v3H5z" fill="#fff"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 16 16"><rect x="1" y="1" width="4" height="4" fill="#000"/><rect x="6" y="1" width="4" height="4" fill="#000"/><rect x="11" y="1" width="4" height="4" fill="#000"/><rect x="1" y="6" width="4" height="4" fill="#000"/><rect x="6" y="6" width="4" height="4" fill="#000"/><rect x="11" y="6" width="4" height="4" fill="#000"/><rect x="1" y="11" width="4" height="4" fill="#000"/><rect x="6" y="11" width="4" height="4" fill="#000"/><rect x="11" y="11" width="4" height="4" fill="#000"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><rect x="7" y="2" width="2" height="12" fill="#000"/><rect x="2" y="7" width="12" height="2" fill="#000"/></symbol>
   </svg>
 );
 const Ico = ({ id }) => <svg><use href={`#${id}`} /></svg>;
@@ -314,6 +342,184 @@ function ScaleToFit({ children, minScale = 0.55, maxScale = 2.6 }) {
   );
 }
 
+/* ---------- Tasks: Project Hub ---------- */
+function ProjectHub({ folders, tasks, selected, onSelect, onAddFolder, onDeleteFolder, onSetColor, onAddTask, onToggleTask, onDeleteTask }) {
+  const [newFolder, setNewFolder] = useState("");
+  const [newGroup, setNewGroup] = useState("");
+  const [newTask, setNewTask] = useState("");
+
+  const folder = folders.find((f) => f.id === selected) || null;
+  const folderTasks = folder ? tasks.filter((t) => t.folderId === folder.id) : [];
+
+  const groups = [];
+  const buckets = {};
+  folderTasks.forEach((t) => {
+    const g = t.group || "General";
+    if (!buckets[g]) { buckets[g] = []; groups.push(g); }
+    buckets[g].push(t);
+  });
+  groups.sort((a, b) => (a === "General") - (b === "General"));
+
+  const submitTask = () => {
+    if (!newTask.trim() || !folder) return;
+    onAddTask(folder.id, newGroup, newTask.trim());
+    setNewTask("");
+  };
+  const submitFolder = () => {
+    if (!newFolder.trim()) return;
+    onAddFolder(newFolder.trim());
+    setNewFolder("");
+  };
+
+  return (
+    <>
+      <div className="hubBody">
+        <div className="hubSidebar">
+          {folders.map((f) => (
+            <div key={f.id} className={`hubFolder ${selected === f.id ? "on" : ""}`} onClick={() => onSelect(f.id)}>
+              <span className="hubFolderIcon" style={{ background: f.color }} />
+              <span className="hubFolderName">{f.name}</span>
+              {selected === f.id && (
+                <span className="hubFolderDel" onClick={(e) => { e.stopPropagation(); onDeleteFolder(f.id); }}>×</span>
+              )}
+            </div>
+          ))}
+          <div className="hubNewFolder">
+            <input
+              value={newFolder}
+              placeholder="+ New folder"
+              onChange={(e) => setNewFolder(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitFolder()}
+            />
+          </div>
+        </div>
+
+        <div className="hubMain">
+          {!folder && <div className="hubEmpty">Create or pick a folder on the left to see its tasks.</div>}
+          {folder && (
+            <>
+              <div className="hubHeader">
+                <span className="hubHeaderDot" style={{ background: folder.color }} />
+                {folder.name}
+              </div>
+
+              <div className="hubAddRow">
+                <input className="hubInputSmall" placeholder="Section (optional)" value={newGroup}
+                       onChange={(e) => setNewGroup(e.target.value)} />
+                <input className="hubInputBig" placeholder="New task…" value={newTask}
+                       onChange={(e) => setNewTask(e.target.value)}
+                       onKeyDown={(e) => e.key === "Enter" && submitTask()} />
+                <div className="hubAddBtn" onClick={submitTask}>Add</div>
+              </div>
+
+              <div className="hubList">
+                {groups.length === 0 && <div className="hubEmpty">No tasks yet — add one above.</div>}
+                {groups.map((g) => (
+                  <div key={g} className="hubGroup">
+                    <div className="hubGroupTitle">{g}</div>
+                    {buckets[g].map((t) => (
+                      <div key={t.id} className={`hubItem ${t.done ? "done" : ""}`}>
+                        <div className="hubCb" onClick={() => onToggleTask(t.id)}>{t.done ? "✓" : ""}</div>
+                        <div className="hubItemName">{t.name}</div>
+                        <div className="hubItemDel" onClick={() => onDeleteTask(t.id)}>×</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="hubPalette">
+        {PAINT_PALETTE.map((c) => (
+          <div key={c} className="hubSwatch" style={{ background: c }}
+               onClick={() => folder && onSetColor(folder.id, c)} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ---------- Journal ---------- */
+function Journal({ entries, wallet, onAdd }) {
+  const [compose, setCompose] = useState(false);
+  const [caption, setCaption] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  const fileRef = useRef(null);
+
+  const level = Math.max(1, Math.floor(wallet / 500) + 1);
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0];
+    if (f) setPhoto(URL.createObjectURL(f));
+  };
+
+  const post = () => {
+    if (!caption.trim() && !photo) return;
+    onAdd(caption.trim(), photo);
+    setCaption(""); setPhoto(null); setCompose(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const opened = entries.find((e) => e.id === openId);
+
+  return (
+    <div className="jrnl">
+      <div className="jrnlProfile">
+        <div className="jrnlAvatar" />
+        <div className="jrnlStats">
+          <div><b>{entries.length}</b><span>Entries</span></div>
+          <div><b>{wallet.toLocaleString()}</b><span>Points</span></div>
+          <div><b>{level}</b><span>Level</span></div>
+        </div>
+      </div>
+      <div className="jrnlName"><b>Diva</b><small>building fae one commit at a time ✨</small></div>
+
+      <div className="jrnlToolbar">
+        <div className="jrnlTool on"><Ico id="i-grid" /></div>
+        <div className="jrnlTool" onClick={() => setCompose((c) => !c)}><Ico id="i-plus" /></div>
+      </div>
+
+      {compose && (
+        <div className="jrnlCompose">
+          <textarea placeholder="What's on your mind…" value={caption} onChange={(e) => setCaption(e.target.value)} />
+          <div className="jrnlComposeRow">
+            <label className="jrnlUpload">
+              {photo ? "Change photo" : "Add photo"}
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} hidden />
+            </label>
+            {photo && <img className="jrnlPreview" src={photo} alt="" />}
+            <div className="jrnlPostBtn" onClick={post}>Post</div>
+          </div>
+        </div>
+      )}
+
+      <div className="jrnlGrid">
+        {entries.length === 0 && <div className="hubEmpty">No entries yet — hit the + to write your first one.</div>}
+        {entries.map((e) => (
+          <div key={e.id} className="jrnlThumb" onClick={() => setOpenId(e.id)}>
+            {e.photo ? <img src={e.photo} alt="" /> : <div className="jrnlTextThumb">{e.caption.slice(0, 60) || "…"}</div>}
+          </div>
+        ))}
+      </div>
+
+      {opened && (
+        <div className="jrnlOverlay" onClick={() => setOpenId(null)}>
+          <div className="jrnlOverlayCard" onClick={(e) => e.stopPropagation()}>
+            <div className="jrnlOverlayClose" onClick={() => setOpenId(null)}>✕</div>
+            {opened.photo && <img src={opened.photo} alt="" />}
+            <div className="jrnlOverlayDate">{opened.date}</div>
+            <div className="jrnlOverlayCaption">{opened.caption}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- theme data ---------- */
 const WALLPAPERS = ["#3a2a4d", "#008080", "#5b3a29", "#1a1a2e", "#c96a8b", "#7aa37a", "#404040"];
 const PATTERNS = [
@@ -349,14 +555,18 @@ const SCREENS = [
 export default function App() {
   const [tasks, setTasks]   = useState(INITIAL_TASKS);
   const [habits, setHabits] = useState(DEFAULT_HABITS);
+  const [folders, setFolders]           = useState(DEFAULT_FOLDERS);
+  const [projectTasks, setProjectTasks] = useState(DEFAULT_PROJECT_TASKS);
+  const [selectedFolder, setSelectedFolder] = useState(DEFAULT_FOLDERS[0]?.id ?? null);
+  const [journalEntries, setJournalEntries] = useState(DEFAULT_ENTRIES);
   const [wallet, setWallet] = useState(START_BALANCE);
   const [shown, setShown]   = useState(START_BALANCE);
   const [floatText, setFloat] = useState(null);
   const [hyped, setHyped]   = useState(false);
 
-  const [open, setOpen]     = useState({ tasks: true, habits: true, habitsHub: false, cpl: false });
+  const [open, setOpen]     = useState({ tasks: true, habits: true, habitsHub: false, cpl: false, projectHub: false, journal: false });
   const [zTop, setZTop]     = useState(10);
-  const [zMap, setZMap]     = useState({ tasks: 3, habits: 2, habitsHub: 4, tama: 5, cpl: 9 });
+  const [zMap, setZMap]     = useState({ tasks: 3, habits: 2, habitsHub: 4, tama: 5, cpl: 9, projectHub: 6, journal: 7 });
   const [startOpen, setStartOpen] = useState(false);
   const [tab, setTab]       = useState("desktop");
   const [theme, setTheme]   = useState({ wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0 });
@@ -444,6 +654,32 @@ export default function App() {
     setHabits((hs) => [...hs, { id: Date.now(), name, points, week: [null, null, null, null, null, null, null] }]);
   };
 
+  // ---- Project Hub ----
+  const addFolder = (name) => {
+    const nf = { id: Date.now(), name, color: PAINT_PALETTE[folders.length % PAINT_PALETTE.length] };
+    setFolders((fs) => [...fs, nf]);
+    setSelectedFolder(nf.id);
+  };
+  const deleteFolder = (id) => {
+    setFolders((fs) => fs.filter((f) => f.id !== id));
+    setProjectTasks((ts) => ts.map((t) => (t.folderId === id ? { ...t, folderId: null } : t)));
+    setSelectedFolder((sf) => (sf === id ? null : sf));
+  };
+  const setFolderColor = (id, color) => setFolders((fs) => fs.map((f) => (f.id === id ? { ...f, color } : f)));
+  const addProjectTask = (folderId, group, name) => {
+    setProjectTasks((ts) => [...ts, { id: Date.now(), folderId, group: group?.trim() || "", name, done: false }]);
+  };
+  const toggleProjectTask = (id) => setProjectTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const deleteProjectTask = (id) => setProjectTasks((ts) => ts.filter((t) => t.id !== id));
+
+  // ---- Journal ----
+  const addJournalEntry = (caption, photo) => {
+    setJournalEntries((js) => [
+      { id: Date.now(), date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }), caption, photo },
+      ...js,
+    ]);
+  };
+
   const doneTasks = tasks.filter((t) => t.done);
   const earned    = doneTasks.reduce((s, t) => s + taskPoints(t.difficulty), 0);
   const totalPts  = tasks.reduce((s, t) => s + taskPoints(t.difficulty), 0);
@@ -464,9 +700,9 @@ export default function App() {
         {/* ---- icons ---- */}
         <div className="dock">
           <div className="icon" onClick={() => openWin("habitsHub")}><Ico id="i-stats" /><span>Habits</span></div>
-          <div className="icon"><Ico id="i-space" /><span>Tasks</span></div>
+          <div className="icon" onClick={() => openWin("projectHub")}><Ico id="i-space" /><span>Tasks</span></div>
           <div className="icon"><Ico id="i-store" /><span>Store</span></div>
-          <div className="icon"><Ico id="i-page" /><span>Journal</span></div>
+          <div className="icon" onClick={() => openWin("journal")}><Ico id="i-page" /><span>Journal</span></div>
           <div className="icon" onClick={() => openWin("cpl")}><Ico id="i-cpl" /><span>Settings</span></div>
         </div>
 
@@ -566,6 +802,44 @@ export default function App() {
               <ScaleToFit>
                 <Digicam habits={habits} onAdd={addHabit} />
               </ScaleToFit>
+            </div>
+          </Win>
+        )}
+
+        {/* ---- TASKS: PROJECT HUB ---- */}
+        {open.projectHub && (
+          <Win
+            id="projectHub" icon="i-space" title="Tasks — Project Hub"
+            menu={["File", "Edit", "View", "Image", "Colors", "Help"]}
+            init={{ x: 130, y: 40, w: 520, h: 420 }}
+            z={zMap.projectHub} focus={focus} onClose={() => close("projectHub")}
+          >
+            <div className="content">
+              <ProjectHub
+                folders={folders}
+                tasks={projectTasks}
+                selected={selectedFolder}
+                onSelect={setSelectedFolder}
+                onAddFolder={addFolder}
+                onDeleteFolder={deleteFolder}
+                onSetColor={setFolderColor}
+                onAddTask={addProjectTask}
+                onToggleTask={toggleProjectTask}
+                onDeleteTask={deleteProjectTask}
+              />
+            </div>
+          </Win>
+        )}
+
+        {/* ---- JOURNAL ---- */}
+        {open.journal && (
+          <Win
+            id="journal" icon="i-page" title="journal.exe"
+            init={{ x: 180, y: 40, w: 300, h: 480 }}
+            z={zMap.journal} focus={focus} onClose={() => close("journal")}
+          >
+            <div className="content">
+              <Journal entries={journalEntries} wallet={shown} onAdd={addJournalEntry} />
             </div>
           </Win>
         )}
@@ -702,9 +976,13 @@ export default function App() {
             <div className="smitem" onClick={() => { openWin("habitsHub"); setStartOpen(false); }}>
               <Ico id="i-stats" />Habits
             </div>
-            <div className="smitem"><Ico id="i-space" />Tasks</div>
+            <div className="smitem" onClick={() => { openWin("projectHub"); setStartOpen(false); }}>
+              <Ico id="i-space" />Tasks
+            </div>
             <div className="smitem"><Ico id="i-store" />Store</div>
-            <div className="smitem"><Ico id="i-page" />Journal</div>
+            <div className="smitem" onClick={() => { openWin("journal"); setStartOpen(false); }}>
+              <Ico id="i-page" />Journal
+            </div>
             <div className="smsep" />
             <div className="smitem" onClick={() => { openWin("cpl"); setStartOpen(false); }}>
               <Ico id="i-cpl" />Control Panel…

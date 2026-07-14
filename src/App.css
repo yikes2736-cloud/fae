@@ -177,6 +177,82 @@
   box-shadow:0 0 0 2px #999; display:grid; place-items:center; color:#fff; font-size:14px; cursor:pointer;}
 .camAddHint{font-size:7px; color:#666;}
 
+/* ---- TASKS: PROJECT HUB ---- */
+.hubBody{flex:1; min-height:0; display:flex; gap:4px;}
+.hubSidebar{width:120px; flex:0 0 120px; background:#fff; overflow:auto; display:flex; flex-direction:column; gap:1px; padding:3px;
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.hubFolder{display:flex; align-items:center; gap:5px; padding:4px 3px; font-size:11px; cursor:pointer; position:relative;}
+.hubFolder:hover{background:#e8e8f5;}
+.hubFolder.on{background:var(--title); color:#fff;}
+.hubFolderIcon{width:12px; height:10px; flex:0 0 12px; border:1px solid rgba(0,0,0,.35);}
+.hubFolderName{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.hubFolderDel{font-weight:bold; cursor:pointer; padding:0 3px;}
+.hubNewFolder{margin-top:4px;}
+.hubNewFolder input{width:100%; font:11px "MS Sans"; padding:3px;
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.hubMain{flex:1; min-height:0; display:flex; flex-direction:column; gap:6px; background:#fff; padding:8px; overflow:auto;
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.hubEmpty{color:#777; font-size:11px; padding:10px 0;}
+.hubHeader{font:bold 13px "MS Sans"; display:flex; align-items:center; gap:6px;}
+.hubHeaderDot{width:12px; height:12px; border:1px solid rgba(0,0,0,.35); flex:0 0 12px;}
+.hubAddRow{display:flex; gap:4px;}
+.hubInputSmall{width:100px; font:11px "MS Sans"; padding:3px;
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.hubInputBig{flex:1; font:11px "MS Sans"; padding:3px;
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.hubAddBtn{padding:3px 10px; font:bold 11px "MS Sans"; background:var(--face); cursor:pointer;
+  border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);}
+.hubAddBtn:active{border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.hubList{flex:1; min-height:0; overflow:auto;}
+.hubGroup{margin-bottom:10px;}
+.hubGroupTitle{font-weight:bold; font-size:12px; margin-bottom:3px; text-decoration:underline;}
+.hubItem{display:flex; align-items:center; gap:6px; padding:2px 0; font-size:12px;}
+.hubItem.done .hubItemName{text-decoration:line-through; color:#999;}
+.hubCb{width:12px; height:12px; flex:0 0 12px; background:#fff; display:grid; place-items:center;
+  font:bold 10px/1 "MS Sans"; cursor:pointer;
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.hubItemName{flex:1;}
+.hubItemDel{cursor:pointer; color:#999; padding:0 3px;}
+.hubItemDel:hover{color:#c00;}
+.hubPalette{flex:0 0 auto; display:flex; flex-wrap:wrap; gap:2px; padding:4px 2px 0;}
+.hubSwatch{width:17px; height:14px; cursor:pointer; border:1px solid rgba(0,0,0,.3);}
+
+/* ---- JOURNAL ---- */
+.jrnl{flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; background:#fff; font-size:12px; position:relative;}
+.jrnlProfile{display:flex; align-items:center; gap:14px; padding:14px;}
+.jrnlAvatar{width:60px; height:60px; flex:0 0 60px; border-radius:50%; border:2px solid var(--tama-edge);
+  background:linear-gradient(160deg,var(--tama-a),var(--tama-b));}
+.jrnlStats{flex:1; display:flex; justify-content:space-around; text-align:center;}
+.jrnlStats div{display:flex; flex-direction:column;}
+.jrnlStats b{font-size:14px;}
+.jrnlStats span{font-size:10px; color:#555;}
+.jrnlName{padding:0 14px 8px;}
+.jrnlName b{display:block; font-size:12px;}
+.jrnlName small{color:#555; font-size:11px;}
+.jrnlToolbar{display:flex; border-top:1px solid #ccc; border-bottom:1px solid #ccc;}
+.jrnlTool{flex:1; display:flex; justify-content:center; padding:7px 0; cursor:pointer;}
+.jrnlTool svg{width:18px; height:18px;}
+.jrnlTool.on{border-top:2px solid #000; margin-top:-1px;}
+.jrnlCompose{padding:10px; border-bottom:1px solid #ccc; display:flex; flex-direction:column; gap:6px; background:#fafafa;}
+.jrnlCompose textarea{width:100%; min-height:60px; font:12px "MS Sans"; padding:5px; resize:vertical;
+  border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
+.jrnlComposeRow{display:flex; align-items:center; gap:8px;}
+.jrnlUpload{font-size:11px; padding:4px 8px; background:var(--face); cursor:pointer;
+  border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);}
+.jrnlPreview{width:32px; height:32px; object-fit:cover; border:1px solid #999;}
+.jrnlPostBtn{margin-left:auto; padding:4px 12px; font:bold 11px "MS Sans"; background:var(--tama-b); color:#fff; cursor:pointer;
+  border:2px solid rgba(0,0,0,.2);}
+.jrnlGrid{display:grid; grid-template-columns:repeat(3,1fr); gap:2px; padding:2px;}
+.jrnlThumb{aspect-ratio:1; background:#eee; overflow:hidden; cursor:pointer; position:relative;}
+.jrnlThumb img{width:100%; height:100%; object-fit:cover;}
+.jrnlTextThumb{width:100%; height:100%; padding:6px; font-size:9px; line-height:1.3; color:#333; background:#f1e6f7; overflow:hidden;}
+.jrnlOverlay{position:absolute; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; padding:14px; z-index:20;}
+.jrnlOverlayCard{background:#fff; max-width:100%; max-height:100%; overflow:auto; padding:10px; position:relative; border:2px solid #000;}
+.jrnlOverlayCard img{width:100%; display:block; margin-bottom:8px;}
+.jrnlOverlayClose{position:absolute; top:4px; right:6px; cursor:pointer; font-weight:bold;}
+.jrnlOverlayDate{font-size:10px; color:#777; margin-bottom:4px;}
+.jrnlOverlayCaption{font-size:12px; line-height:1.4;}
+
 /* ---- control panel ---- */
 .tabs{display:flex; gap:2px; margin:4px 2px 0;}
 .tab{padding:4px 12px; font-size:11px; background:var(--face); cursor:pointer;
