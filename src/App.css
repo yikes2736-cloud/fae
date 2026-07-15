@@ -500,3 +500,59 @@
 .smitem:hover{background:var(--title); color:#fff;}
 .smitem svg{width:20px; height:20px;}
 .smsep{height:0; margin:3px 4px; border-top:1px solid var(--shadow); border-bottom:1px solid var(--hi);}
+
+/* ================= MOBILE ================= */
+@media (max-width: 720px) {
+  .fae{ touch-action: auto; }
+
+  /* every window goes full-screen; whichever has focus (highest z) is the one you see */
+  .win{
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .grip, .edge{ display: none !important; }
+
+  /* nav icons become a thumb-reachable strip just above the taskbar */
+  .dock{
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 30px;
+    width: auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    overflow-x: auto;
+    gap: 4px;
+    padding: 6px 8px;
+    background: rgba(0,0,0,.4);
+    z-index: 250;
+  }
+  .icon{ flex: 0 0 auto; padding: 4px 6px; }
+  .icon svg{ width: 26px; height: 26px; }
+  .icon span{ font-size: 9px; }
+
+  /* the taskbar's pinned shortcuts are now redundant with the dock strip above */
+  .tbtn{ display: none; }
+
+  .startmenu{
+    left: 0;
+    right: 0;
+    bottom: 68px;
+    width: auto;
+  }
+
+  /* pet docks to a fixed corner instead of free-floating */
+  .tamaMobile{
+    position: fixed !important;
+    left: auto !important;
+    top: auto !important;
+    right: 10px;
+    bottom: 72px;
+    width: 120px;
+  }
+
+  .toast{ left: 12px; right: 12px; bottom: 78px; }
+}
