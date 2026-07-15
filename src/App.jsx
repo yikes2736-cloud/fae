@@ -146,12 +146,11 @@ function DueDatePicker({ value, onChange }) {
 }
 
 /* ---------- draggable + resizable window ---------- */
-function Win({ id, title, icon, menu, footer, children, init, z, focus, onClose, className = "", isMobile }) {
+function Win({ id, title, icon, menu, footer, children, init, z, focus, onClose, className = "" }) {
   const ref = useRef(null);
   const [box, setBox] = useState(init);
 
   const startDrag = (e, mode) => {
-    if (isMobile) return; // fullscreen on mobile — nothing to drag or resize
     e.stopPropagation();
     focus(id);
     const el = ref.current;
@@ -198,24 +197,19 @@ function Win({ id, title, icon, menu, footer, children, init, z, focus, onClose,
       )}
       {children}
       {footer && <div className="status">{footer}</div>}
-      {!isMobile && (
-        <>
-          <div className="edge e-r" onPointerDown={(e) => startDrag(e, "r")} />
-          <div className="edge e-b" onPointerDown={(e) => startDrag(e, "b")} />
-          <div className="grip"   onPointerDown={(e) => startDrag(e, "rb")} />
-        </>
-      )}
+      <div className="edge e-r" onPointerDown={(e) => startDrag(e, "r")} />
+      <div className="edge e-b" onPointerDown={(e) => startDrag(e, "b")} />
+      <div className="grip"   onPointerDown={(e) => startDrag(e, "rb")} />
     </div>
   );
 }
 
 /* ---------- the pet ---------- */
-function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onTweak, z, focus, isMobile }) {
+function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onTweak, z, focus }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x: window.innerWidth - 250, y: 34 });
 
   const startDrag = (e) => {
-    if (isMobile) return; // pinned to a fixed corner via CSS on mobile
     if (e.target.closest(".pad")) return;
     focus("tama");
     const r = ref.current.getBoundingClientRect();
@@ -237,8 +231,8 @@ function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onTweak, z, f
   return (
     <div
       ref={ref}
-      className={`tama ${hyped ? "pop hyped" : ""} ${isMobile ? "tamaMobile" : ""}`}
-      style={isMobile ? { zIndex: z } : { left: pos.x, top: pos.y, zIndex: z }}
+      className={`tama ${hyped ? "pop hyped" : ""}`}
+      style={{ left: pos.x, top: pos.y, zIndex: z }}
       onPointerDown={startDrag}
     >
       <div className="screen">
@@ -993,13 +987,6 @@ function Desktop({ session }) {
   const [tab, setTab]       = useState("desktop");
   const [theme, setTheme]   = useState(DEFAULT_THEME);
   const [clock, setClock]   = useState("");
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 720);
-
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 720);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
 
   const uid = session.user.id;
 
@@ -1429,7 +1416,7 @@ function Desktop({ session }) {
             className="tasksWin"
             menu={["File", "Edit", "View", "Help"]}
             init={{ x: 120, y: 24, w: 430, h: 320 }}
-            z={zMap.tasks} focus={focus} onClose={() => close("tasks")} isMobile={isMobile}
+            z={zMap.tasks} focus={focus} onClose={() => close("tasks")}
             footer={[
               <div key="a">{tasks.length - doneTasks.length} tasks queued</div>,
               <div key="b">{earned} / {totalPts} pts</div>,
@@ -1503,7 +1490,7 @@ function Desktop({ session }) {
             className="habitsWin"
             menu={["Game", "Help"]}
             init={{ x: window.innerWidth - 330, y: window.innerHeight - 340, w: 310, h: 270 }}
-            z={zMap.habits} focus={focus} onClose={() => close("habits")} isMobile={isMobile}
+            z={zMap.habits} focus={focus} onClose={() => close("habits")}
             footer={[<div key="a">{ticked} days ticked · {openDays} still open</div>]}
           >
             <div className="content">
@@ -1544,7 +1531,7 @@ function Desktop({ session }) {
           <Win
             id="habitsHub" icon="i-stats" title="Habits — Streak Cam"
             init={{ x: 150, y: 50, w: 380, h: 480 }}
-            z={zMap.habitsHub} focus={focus} onClose={() => close("habitsHub")} isMobile={isMobile}
+            z={zMap.habitsHub} focus={focus} onClose={() => close("habitsHub")}
           >
             <div className="content camWrap">
               <ScaleToFit>
@@ -1560,7 +1547,7 @@ function Desktop({ session }) {
             id="projectHub" icon="i-space" title="Tasks — Project Hub"
             menu={["File", "Edit", "View", "Image", "Colors", "Help"]}
             init={{ x: 130, y: 40, w: 520, h: 420 }}
-            z={zMap.projectHub} focus={focus} onClose={() => close("projectHub")} isMobile={isMobile}
+            z={zMap.projectHub} focus={focus} onClose={() => close("projectHub")}
           >
             <div className="content">
               <ProjectHub
@@ -1584,7 +1571,7 @@ function Desktop({ session }) {
           <Win
             id="journal" icon="i-page" title="journal.exe"
             init={{ x: 180, y: 40, w: 300, h: 480 }}
-            z={zMap.journal} focus={focus} onClose={() => close("journal")} isMobile={isMobile}
+            z={zMap.journal} focus={focus} onClose={() => close("journal")}
           >
             <div className="content">
               <Journal entries={journalEntries} wallet={shown} username={session.user.email.split("@")[0]} onAdd={addJournalEntry} />
@@ -1597,7 +1584,7 @@ function Desktop({ session }) {
           <Win
             id="store" icon="i-store" title="Store — Rewards"
             init={{ x: 160, y: 40, w: 560, h: 470 }}
-            z={zMap.store} focus={focus} onClose={() => close("store")} isMobile={isMobile}
+            z={zMap.store} focus={focus} onClose={() => close("store")}
           >
             <div className="content storeWrap">
               <Store
@@ -1620,7 +1607,7 @@ function Desktop({ session }) {
             id="journey" icon="i-journey" title="Journey — Your Progress"
             menu={["File", "View", "Help"]}
             init={{ x: 200, y: 60, w: 420, h: 480 }}
-            z={zMap.journey} focus={focus} onClose={() => close("journey")} isMobile={isMobile}
+            z={zMap.journey} focus={focus} onClose={() => close("journey")}
           >
             <div className="content">
               <Journey stats={stats} unlocked={unlocked} />
@@ -1633,7 +1620,7 @@ function Desktop({ session }) {
           <Win
             id="cpl" icon="i-cpl" title="Control Panel — Appearance"
             init={{ x: 220, y: 90, w: 400, h: 340 }}
-            z={zMap.cpl} focus={focus} onClose={() => close("cpl")} isMobile={isMobile}
+            z={zMap.cpl} focus={focus} onClose={() => close("cpl")}
           >
             <div className="tabs">
               {["desktop", "windows", "pet", "alerts"].map((t) => (
@@ -1766,7 +1753,7 @@ function Desktop({ session }) {
           onStore={() => openWin("store")}
           onFeed={() => { setHyped(true); setTimeout(() => setHyped(false), 1500); }}
           onTweak={() => openWin("cpl")}
-          isMobile={isMobile}
+         
         />
       </div>
 

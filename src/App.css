@@ -14,9 +14,9 @@
   position:fixed; inset:0; overflow:hidden;
   background:var(--desk); background-image:var(--desk-pattern); background-size:16px 16px;
   font:12px "MS Sans",Tahoma,sans-serif; -webkit-font-smoothing:none;
-  user-select:none; cursor:default; touch-action:none;
+  user-select:none; cursor:default;
 }
-.desktop{position:absolute; inset:0 0 30px 0; overflow:hidden;}
+.desktop{position:absolute; inset:0 0 30px 0; overflow:auto; -webkit-overflow-scrolling:touch;}
 
 /* ---- login / signup ---- */
 .authLoading{position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
@@ -51,7 +51,7 @@
   min-width:220px; min-height:150px;
   border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);
   box-shadow:inset 1px 1px 0 var(--light), inset -1px -1px 0 var(--shadow);}
-.bar{flex:0 0 18px; display:flex; align-items:center; gap:4px; padding:0 2px 0 3px; cursor:move;
+.bar{flex:0 0 18px; display:flex; align-items:center; gap:4px; padding:0 2px 0 3px; cursor:move; touch-action:none;
   background:linear-gradient(90deg,var(--title),var(--title2)); color:#fff;}
 .bar .t{flex:1; font-weight:bold; font-size:11px; white-space:nowrap; overflow:hidden;}
 .bar svg{width:16px; height:16px; flex:0 0 16px; shape-rendering:crispEdges;}
@@ -68,10 +68,10 @@
 .status div{padding:1px 4px; font-size:11px; white-space:nowrap; overflow:hidden;
   border:2px solid; border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);}
 .status div:first-child{flex:1;}
-.grip{position:absolute; right:2px; bottom:2px; width:16px; height:16px; cursor:nwse-resize;}
+.grip{position:absolute; right:2px; bottom:2px; width:16px; height:16px; cursor:nwse-resize; touch-action:none;}
 .grip::after{content:""; position:absolute; inset:0;
   background:linear-gradient(135deg,transparent 45%,var(--shadow) 45% 55%,var(--hi) 55% 65%,transparent 65%);}
-.edge{position:absolute;}
+.edge{position:absolute; touch-action:none;}
 .e-r{top:0; right:-3px; width:6px; height:100%; cursor:ew-resize;}
 .e-b{left:0; bottom:-3px; height:6px; width:100%; cursor:ns-resize;}
 
@@ -124,7 +124,7 @@
   background:repeating-linear-gradient(90deg,var(--lcd) 0 3px,#0a0a0c 3px 5px);}
 
 /* ---- tamagotchi ---- */
-.tama{position:absolute; width:190px; cursor:grab; z-index:5;
+.tama{position:absolute; width:190px; cursor:grab; z-index:5; touch-action:none;
   padding:16px 16px 12px;
   background:linear-gradient(160deg,var(--tama-a),var(--tama-b) 55%,var(--tama-c));
   border-radius:50% 50% 44% 44%/38% 38% 56% 56%; border:2px solid var(--tama-edge);
@@ -500,59 +500,3 @@
 .smitem:hover{background:var(--title); color:#fff;}
 .smitem svg{width:20px; height:20px;}
 .smsep{height:0; margin:3px 4px; border-top:1px solid var(--shadow); border-bottom:1px solid var(--hi);}
-
-/* ================= MOBILE ================= */
-@media (max-width: 720px) {
-  .fae{ touch-action: auto; }
-
-  /* every window goes full-screen; whichever has focus (highest z) is the one you see */
-  .win{
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-  }
-  .grip, .edge{ display: none !important; }
-
-  /* nav icons become a thumb-reachable strip just above the taskbar */
-  .dock{
-    position: fixed;
-    top: auto;
-    left: 0;
-    right: 0;
-    bottom: 30px;
-    width: auto;
-    flex-direction: row;
-    justify-content: flex-start;
-    overflow-x: auto;
-    gap: 4px;
-    padding: 6px 8px;
-    background: rgba(0,0,0,.4);
-    z-index: 250;
-  }
-  .icon{ flex: 0 0 auto; padding: 4px 6px; }
-  .icon svg{ width: 26px; height: 26px; }
-  .icon span{ font-size: 9px; }
-
-  /* the taskbar's pinned shortcuts are now redundant with the dock strip above */
-  .tbtn{ display: none; }
-
-  .startmenu{
-    left: 0;
-    right: 0;
-    bottom: 68px;
-    width: auto;
-  }
-
-  /* pet docks to a fixed corner instead of free-floating */
-  .tamaMobile{
-    position: fixed !important;
-    left: auto !important;
-    top: auto !important;
-    right: 10px;
-    bottom: 72px;
-    width: 120px;
-  }
-
-  .toast{ left: 12px; right: 12px; bottom: 78px; }
-}
