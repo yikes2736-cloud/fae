@@ -20,7 +20,6 @@ const FREQ_LABEL = {
 };
 const FREQ_INTERVAL_MS = { h1: 3600000, h2: 7200000, h3: 10800000, daily: 86400000 };
 
-const DEFAULT_THEME = { wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0 };
 const formatDate = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 // Current streak = consecutive `true` days counting back from the most recently logged day
@@ -205,7 +204,7 @@ function Win({ id, title, icon, menu, footer, children, init, z, focus, onClose,
 }
 
 /* ---------- the pet ---------- */
-function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onTweak, z, focus }) {
+function Tama({ pct, displayed, floatText, hyped, petType, onStore, onFeed, onTweak, z, focus }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x: window.innerWidth - 250, y: 34 });
 
@@ -226,7 +225,9 @@ function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onTweak, z, f
 
   const mood = pct === 1 ? "THRIVING" : pct > 0.5 ? "HAPPY" : pct > 0 ? "CONTENT" : "SLEEPY";
   const mouthW = 4 + Math.round(pct * 5);
+  const mouthX = 22 - Math.round(mouthW / 2);
   const armY = 11 - Math.round(pct * 3);
+  const Creature = CREATURES[petType] || CreatureBlob;
 
   return (
     <div
@@ -237,21 +238,7 @@ function Tama({ pct, displayed, floatText, hyped, onStore, onFeed, onTweak, z, f
     >
       <div className="screen">
         <svg viewBox="0 0 44 32">
-          <g className="sprite" fill="var(--ink)">
-            <rect x="17" y="5" width="10" height="2" />
-            <rect x="15" y="7" width="14" height="2" />
-            <rect x="13" y="9" width="18" height="9" />
-            <rect x="15" y="18" width="14" height="3" />
-            <rect x="16" y="21" width="4" height="2" />
-            <rect x="24" y="21" width="4" height="2" />
-            <rect x="11" y={armY} width="2" height="5" />
-            <rect x="31" y={armY} width="2" height="5" />
-            <g fill="var(--screen)">
-              <rect x="17" y="11" width="2" height="2" />
-              <rect x="25" y="11" width="2" height="2" />
-              <rect x={22 - Math.round(mouthW / 2)} y="15" width={mouthW} height="1" />
-            </g>
-          </g>
+          <Creature mouthW={mouthW} mouthX={mouthX} armY={armY} />
           <g fill="var(--ink)" opacity={pct > 0.6 ? 1 : 0.2}>
             <rect x="36" y="4"  width="2" height="2" />
             <rect x="6"  y="24" width="2" height="2" />
@@ -915,6 +902,81 @@ const SCREENS = [
   { s: "#e0cfa0", ink: "#3a2d12", e: "#a89a72" },
   { s: "#c9a8cf", ink: "#361a3c", e: "#94769a" },
 ];
+const STORE_SHELLS = SHELLS; // same palette shape, applied independently to the Store
+const PET_TYPES = [
+  { id: "blob",  label: "Blob" },
+  { id: "cat",   label: "Cat" },
+  { id: "chick", label: "Chick" },
+];
+
+/* ---------- pet creatures (swap shape, same theme colors + mood animation) ---------- */
+function CreatureBlob({ mouthW, mouthX, armY }) {
+  return (
+    <g className="sprite" fill="var(--ink)">
+      <rect x="17" y="5" width="10" height="2" />
+      <rect x="15" y="7" width="14" height="2" />
+      <rect x="13" y="9" width="18" height="9" />
+      <rect x="15" y="18" width="14" height="3" />
+      <rect x="16" y="21" width="4" height="2" />
+      <rect x="24" y="21" width="4" height="2" />
+      <rect x="11" y={armY} width="2" height="5" />
+      <rect x="31" y={armY} width="2" height="5" />
+      <g fill="var(--screen)">
+        <rect x="17" y="11" width="2" height="2" />
+        <rect x="25" y="11" width="2" height="2" />
+        <rect x={mouthX} y="15" width={mouthW} height="1" />
+      </g>
+    </g>
+  );
+}
+function CreatureCat({ mouthW, mouthX, armY }) {
+  return (
+    <g className="sprite" fill="var(--ink)">
+      <rect x="14" y="4" width="4" height="4" />
+      <rect x="26" y="4" width="4" height="4" />
+      <rect x="16" y="6" width="12" height="2" />
+      <rect x="13" y="9" width="18" height="9" />
+      <rect x="15" y="18" width="14" height="3" />
+      <rect x="16" y="21" width="4" height="2" />
+      <rect x="24" y="21" width="4" height="2" />
+      <rect x="11" y={armY} width="2" height="5" />
+      <rect x="31" y={armY} width="2" height="5" />
+      <rect x="33" y="16" width="2" height="6" />
+      <rect x="35" y="20" width="2" height="2" />
+      <g fill="var(--screen)">
+        <rect x="17" y="11" width="2" height="2" />
+        <rect x="25" y="11" width="2" height="2" />
+        <rect x={mouthX} y="15" width={mouthW} height="1" />
+      </g>
+    </g>
+  );
+}
+function CreatureChick({ armY }) {
+  return (
+    <g className="sprite" fill="var(--ink)">
+      <rect x="16" y="6" width="12" height="2" />
+      <rect x="13" y="8" width="18" height="10" />
+      <rect x="15" y="18" width="14" height="3" />
+      <rect x="17" y="21" width="3" height="2" />
+      <rect x="24" y="21" width="3" height="2" />
+      <rect x="10" y={armY} width="3" height="6" />
+      <rect x="31" y={armY} width="3" height="6" />
+      <rect x="30" y="12" width="3" height="2" />
+      <g fill="var(--screen)">
+        <rect x="17" y="11" width="2" height="2" />
+        <rect x="25" y="11" width="2" height="2" />
+      </g>
+    </g>
+  );
+}
+const CREATURES = { blob: CreatureBlob, cat: CreatureCat, chick: CreatureChick };
+
+const DEFAULT_THEME = {
+  wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0, storeShell: 0,
+  petType: "blob",
+  wallMode: "color", wallPhotoUrl: null,
+  winMode: "color", winPhotoUrl: null,
+};
 
 /* ---------- login / signup screen ---------- */
 function LoginScreen() {
@@ -1009,7 +1071,7 @@ function Desktop({ session }) {
       if (profileRes.data) {
         setWallet(profileRes.data.wallet ?? 0);
         setShown(profileRes.data.wallet ?? 0);
-        setTheme(profileRes.data.theme || DEFAULT_THEME);
+        setTheme({ ...DEFAULT_THEME, ...(profileRes.data.theme || {}) });
       }
       setTasks(tasksRes.data || []);
       setHabits((habitsRes.data || []).map((h) => ({ ...h, week: h.week || [null, null, null, null, null, null, null] })));
@@ -1080,7 +1142,43 @@ function Desktop({ session }) {
     const sc = SCREENS[theme.screen];
     r.setProperty("--screen", sc.s); r.setProperty("--ink", sc.ink);
     r.setProperty("--screen-edge", sc.e);
+
+    const st = STORE_SHELLS[theme.storeShell ?? 0];
+    r.setProperty("--store-a", st.a); r.setProperty("--store-b", st.b);
+    r.setProperty("--store-c", st.c); r.setProperty("--store-edge", st.e);
+
+    r.setProperty("--desk-photo", theme.wallMode === "photo" && theme.wallPhotoUrl ? `url(${theme.wallPhotoUrl})` : "none");
+    r.setProperty("--win-photo",  theme.winMode  === "photo" && theme.winPhotoUrl  ? `url(${theme.winPhotoUrl})`  : "none");
   }, [theme]);
+
+  const [wallUploading, setWallUploading] = useState(false);
+  const [winUploading, setWinUploading] = useState(false);
+
+  const uploadThemePhoto = async (file, kind) => {
+    const path = `${uid}/${kind}-${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from("theme-photos").upload(path, file);
+    if (error) { console.error("Theme photo upload failed:", error.message); return null; }
+    const { data } = supabase.storage.from("theme-photos").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const handleWallPhoto = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setWallUploading(true);
+    const url = await uploadThemePhoto(f, "wallpaper");
+    setWallUploading(false);
+    if (url) setTheme((t) => ({ ...t, wallMode: "photo", wallPhotoUrl: url }));
+  };
+
+  const handleWinPhoto = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setWinUploading(true);
+    const url = await uploadThemePhoto(f, "winframe");
+    setWinUploading(false);
+    if (url) setTheme((t) => ({ ...t, winMode: "photo", winPhotoUrl: url }));
+  };
 
   const award = (n) => {
     setWallet((w) => w + n);
@@ -1623,7 +1721,7 @@ function Desktop({ session }) {
             z={zMap.cpl} focus={focus} onClose={() => close("cpl")}
           >
             <div className="tabs">
-              {["desktop", "windows", "pet", "alerts"].map((t) => (
+              {["desktop", "windows", "pet", "store", "alerts"].map((t) => (
                 <div key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
                   {t[0].toUpperCase() + t.slice(1)}
                 </div>
@@ -1637,9 +1735,9 @@ function Desktop({ session }) {
                     <legend>Wallpaper colour</legend>
                     <div className="swatches">
                       {WALLPAPERS.map((c, i) => (
-                        <div key={c} className={`sw ${theme.wall === i ? "on" : ""}`}
+                        <div key={c} className={`sw ${theme.wallMode === "color" && theme.wall === i ? "on" : ""}`}
                              style={{ background: c }}
-                             onClick={() => setTheme({ ...theme, wall: i })} />
+                             onClick={() => setTheme({ ...theme, wall: i, wallMode: "color" })} />
                       ))}
                     </div>
                   </fieldset>
@@ -1653,6 +1751,20 @@ function Desktop({ session }) {
                              onClick={() => setTheme({ ...theme, pat: i })}>{p.label}</div>
                       ))}
                     </div>
+                  </fieldset>
+                  <fieldset>
+                    <legend>Your own photo</legend>
+                    {theme.wallMode === "photo" && theme.wallPhotoUrl ? (
+                      <>
+                        <img src={theme.wallPhotoUrl} alt="" style={{ width: "100%", maxHeight: 90, objectFit: "cover", marginBottom: 6 }} />
+                        <div className="cbn" onClick={() => setTheme({ ...theme, wallMode: "color" })}>Use colour instead</div>
+                      </>
+                    ) : (
+                      <label className="cbn" style={{ display: "inline-block", cursor: "pointer" }}>
+                        {wallUploading ? "Uploading…" : "Upload photo"}
+                        <input type="file" accept="image/*" hidden onChange={handleWallPhoto} />
+                      </label>
+                    )}
                   </fieldset>
                 </>
               )}
@@ -1673,10 +1785,27 @@ function Desktop({ session }) {
                     <legend>Window face</legend>
                     <div className="swatches">
                       {FACES.map((c, i) => (
-                        <div key={c} className={`sw ${theme.face === i ? "on" : ""}`}
+                        <div key={c} className={`sw ${theme.winMode === "color" && theme.face === i ? "on" : ""}`}
                              style={{ background: c }}
-                             onClick={() => setTheme({ ...theme, face: i })} />
+                             onClick={() => setTheme({ ...theme, face: i, winMode: "color" })} />
                       ))}
+                    </div>
+                  </fieldset>
+                  <fieldset>
+                    <legend>Photo frame texture</legend>
+                    {theme.winMode === "photo" && theme.winPhotoUrl ? (
+                      <>
+                        <img src={theme.winPhotoUrl} alt="" style={{ width: "100%", maxHeight: 90, objectFit: "cover", marginBottom: 6 }} />
+                        <div className="cbn" onClick={() => setTheme({ ...theme, winMode: "color" })}>Use colour instead</div>
+                      </>
+                    ) : (
+                      <label className="cbn" style={{ display: "inline-block", cursor: "pointer" }}>
+                        {winUploading ? "Uploading…" : "Upload photo"}
+                        <input type="file" accept="image/*" hidden onChange={handleWinPhoto} />
+                      </label>
+                    )}
+                    <div style={{ fontSize: 10, color: "#555", marginTop: 8, lineHeight: 1.5 }}>
+                      Tiles as a small textured border around every window, behind the content.
                     </div>
                   </fieldset>
                 </>
@@ -1684,6 +1813,20 @@ function Desktop({ session }) {
 
               {tab === "pet" && (
                 <>
+                  <fieldset>
+                    <legend>Creature</legend>
+                    <div className="swatches">
+                      {PET_TYPES.map((p) => {
+                        const C = CREATURES[p.id];
+                        return (
+                          <div key={p.id} className={`sw petSw ${theme.petType === p.id ? "on" : ""}`}
+                               onClick={() => setTheme({ ...theme, petType: p.id })}>
+                            <svg viewBox="0 0 44 32"><C mouthW={7} mouthX={19} armY={8} /></svg>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
                   <fieldset>
                     <legend>Shell colour</legend>
                     <div className="swatches">
@@ -1705,6 +1848,19 @@ function Desktop({ session }) {
                     </div>
                   </fieldset>
                 </>
+              )}
+
+              {tab === "store" && (
+                <fieldset>
+                  <legend>Store colour (independent of your pet)</legend>
+                  <div className="swatches">
+                    {STORE_SHELLS.map((s, i) => (
+                      <div key={i} className={`sw ${theme.storeShell === i ? "on" : ""}`}
+                           style={{ background: s.b }}
+                           onClick={() => setTheme({ ...theme, storeShell: i })} />
+                    ))}
+                  </div>
+                </fieldset>
               )}
 
               {tab === "alerts" && (
@@ -1733,8 +1889,7 @@ function Desktop({ session }) {
             </div>
 
             <div className="cpbtns">
-              <div className="cbn"
-                   onClick={() => setTheme({ wall: 0, pat: 0, accent: 0, face: 0, shell: 0, screen: 0 })}>
+              <div className="cbn" onClick={() => setTheme(DEFAULT_THEME)}>
                 Reset
               </div>
               <div className="cbn" onClick={() => close("cpl")}>OK</div>
@@ -1748,12 +1903,12 @@ function Desktop({ session }) {
           displayed={shown}
           floatText={floatText}
           hyped={hyped}
+          petType={theme.petType}
           z={zMap.tama}
           focus={focus}
           onStore={() => openWin("store")}
           onFeed={() => { setHyped(true); setTimeout(() => setHyped(false), 1500); }}
           onTweak={() => openWin("cpl")}
-         
         />
       </div>
 

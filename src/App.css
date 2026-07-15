@@ -4,15 +4,21 @@
 :root{
   --face:#c0c0c0; --hi:#fff; --light:#dfdfdf; --shadow:#808080; --dark:#000;
   --title:#000080; --title2:#1084d0;
-  --desk:#3a2a4d; --desk-pattern:none;
+  --desk:#3a2a4d; --desk-pattern:none; --desk-photo:none;
   --tama-a:#ffc2e4; --tama-b:#ff69b4; --tama-c:#cf4587; --tama-edge:#a83b73;
+  --store-a:#ffc2e4; --store-b:#ff69b4; --store-c:#cf4587; --store-edge:#a83b73;
   --screen:#9aab6b; --ink:#22301a; --screen-edge:#6d7a4c;
   --lcd:#00ff9c; --tick:#0a7c2f;
+  --win-photo:none;
 }
 
 .fae{
   position:fixed; inset:0; overflow:hidden;
-  background:var(--desk); background-image:var(--desk-pattern); background-size:16px 16px;
+  background-color:var(--desk);
+  background-image: var(--desk-photo), var(--desk-pattern);
+  background-size: cover, 16px 16px;
+  background-position: center, 0 0;
+  background-repeat: no-repeat, repeat;
   font:12px "MS Sans",Tahoma,sans-serif; -webkit-font-smoothing:none;
   user-select:none; cursor:default;
 }
@@ -47,7 +53,8 @@
 .icon:hover span{background:var(--title);}
 
 /* ---- window chrome ---- */
-.win{position:absolute; display:flex; flex-direction:column; background:var(--face); padding:3px;
+.win{position:absolute; display:flex; flex-direction:column; padding:3px;
+  background-color:var(--face); background-image:var(--win-photo); background-repeat:repeat; background-size:72px 72px;
   min-width:220px; min-height:150px;
   border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);
   box-shadow:inset 1px 1px 0 var(--light), inset -1px -1px 0 var(--shadow);}
@@ -299,13 +306,13 @@
 /* ================= STORE: gameboy ================= */
 .storeWrap{padding:0;}
 .gb{flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; padding:10px;
-  background:linear-gradient(160deg, color-mix(in srgb, var(--tama-a) 70%, #fff), var(--tama-a));
-  border:2px solid var(--tama-edge); border-radius:12px;}
+  background:linear-gradient(160deg, color-mix(in srgb, var(--store-a) 70%, #fff), var(--store-a));
+  border:2px solid var(--store-edge); border-radius:12px;}
 .gbMain{flex:1; min-height:0; display:flex; gap:10px;}
-.gbScreenFrame{flex:1; min-width:0; background:color-mix(in srgb, var(--tama-edge) 25%, #fff);
-  border:3px solid var(--tama-edge); border-radius:10px; padding:8px;
+.gbScreenFrame{flex:1; min-width:0; background:color-mix(in srgb, var(--store-edge) 25%, #fff);
+  border:3px solid var(--store-edge); border-radius:10px; padding:8px;
   box-shadow:inset 2px 2px 5px rgba(0,0,0,.25);}
-.gbScreen{width:100%; height:100%; overflow:auto; background:#fff; border:2px solid var(--tama-edge);
+.gbScreen{width:100%; height:100%; overflow:auto; background:#fff; border:2px solid var(--store-edge);
   border-radius:6px; padding:8px; display:flex; flex-direction:column;}
 .gbEmpty{margin:auto; text-align:center; color:#888; font-size:11px; line-height:1.6;}
 
@@ -315,8 +322,8 @@
   display:grid; place-items:center;}
 .gbItemPhoto img{width:100%; height:100%; object-fit:cover;}
 .gbNoPhoto{color:#fff; font-size:9px; text-align:center; padding:4px;}
-.gbItem.inCart .gbItemPhoto{outline:3px solid var(--tama-b); outline-offset:-3px;}
-.gbInCartFlag{position:absolute; bottom:0; left:0; right:0; background:var(--tama-b); color:#fff;
+.gbItem.inCart .gbItemPhoto{outline:3px solid var(--store-b); outline-offset:-3px;}
+.gbInCartFlag{position:absolute; bottom:0; left:0; right:0; background:var(--store-b); color:#fff;
   font:bold 8px "MS Sans"; text-align:center; padding:2px;}
 .gbItemDel{position:absolute; top:2px; right:3px; width:14px; height:14px; border-radius:50%;
   background:rgba(0,0,0,.6); color:#fff; font-size:11px; line-height:13px; text-align:center; cursor:pointer;}
@@ -326,27 +333,27 @@
 .gbPageNum{margin-top:auto; padding-top:6px; text-align:center; font:bold 9px "MS Sans"; color:#888;}
 
 .gbForm{display:flex; flex-direction:column; gap:7px;}
-.gbFormTitle{font:bold 10px "MS Sans"; letter-spacing:.1em; color:var(--tama-edge); text-align:center;}
+.gbFormTitle{font:bold 10px "MS Sans"; letter-spacing:.1em; color:var(--store-edge); text-align:center;}
 .gbInput{padding:5px; font:11px "MS Sans"; border:2px solid; border-color:#999 #fff #fff #999;}
 .gbUpload{display:grid; place-items:center; height:80px; cursor:pointer; background:#f4f4f8;
-  border:2px dashed var(--tama-edge); font-size:11px; color:var(--tama-edge); overflow:hidden;}
+  border:2px dashed var(--store-edge); font-size:11px; color:var(--store-edge); overflow:hidden;}
 .gbUpload img{width:100%; height:100%; object-fit:contain;}
 .gbModeRow{display:flex; gap:4px;}
 .gbMode{flex:1; text-align:center; padding:4px; font:bold 9px "MS Sans"; cursor:pointer;
   background:#e4e4ea; border:1px solid #999;}
-.gbMode.on{background:var(--tama-b); color:#fff; border-color:var(--tama-edge);}
+.gbMode.on{background:var(--store-b); color:#fff; border-color:var(--store-edge);}
 .gbDesireRow{display:flex; align-items:center; gap:3px; font-size:11px;}
 .gbDesireRow span{margin-right:4px;}
 .gbStar{font-size:16px; color:#ccc; cursor:pointer; line-height:1;}
-.gbStar.on{color:var(--tama-b);}
-.gbAutoPts{text-align:center; font:bold 12px "Courier New",monospace; color:var(--tama-edge);
-  background:#f6f0f8; padding:4px; border:1px solid var(--tama-edge);}
+.gbStar.on{color:var(--store-b);}
+.gbAutoPts{text-align:center; font:bold 12px "Courier New",monospace; color:var(--store-edge);
+  background:#f6f0f8; padding:4px; border:1px solid var(--store-edge);}
 .gbFormError{color:#c00; font-size:10px; text-align:center; padding:2px;}
 .gbFormBtns{display:flex; gap:5px; justify-content:flex-end;}
 .gbBtn{padding:5px 14px; font:bold 10px "MS Sans"; cursor:pointer; text-align:center;
   background:#e4e4ea; border:2px solid; border-color:#fff #888 #888 #fff;}
 .gbBtn:active{border-color:#888 #fff #fff #888;}
-.gbBtn.primary{background:var(--tama-b); color:#fff; border-color:color-mix(in srgb,var(--tama-b) 60%,#fff) var(--tama-edge) var(--tama-edge) color-mix(in srgb,var(--tama-b) 60%,#fff);}
+.gbBtn.primary{background:var(--store-b); color:#fff; border-color:color-mix(in srgb,var(--store-b) 60%,#fff) var(--store-edge) var(--store-edge) color-mix(in srgb,var(--store-b) 60%,#fff);}
 
 .gbBag{display:flex; flex-direction:column; gap:5px;}
 .gbBagRow{display:flex; gap:8px; align-items:center; padding:5px; background:#f7f7fa; border:1px solid #ddd;}
@@ -359,23 +366,23 @@
 .gbCart{position:relative; width:46px; height:46px; display:grid; place-items:center; cursor:pointer;}
 .gbCartIcon{width:38px; height:38px;}
 .gbBadge{position:absolute; top:-2px; right:-2px; min-width:18px; height:18px; padding:0 4px; border-radius:50%;
-  background:var(--tama-c); color:#fff; font:bold 10px/18px "MS Sans"; text-align:center;
+  background:var(--store-c); color:#fff; font:bold 10px/18px "MS Sans"; text-align:center;
   border:2px solid #fff;}
-.gbBadge.dark{background:var(--tama-edge);}
+.gbBadge.dark{background:var(--store-edge);}
 .gbDpad{position:relative; width:62px; height:62px;}
 .gbD{position:absolute; width:20px; height:20px; display:grid; place-items:center; cursor:pointer;
-  background:#fdeef6; color:var(--tama-edge); font-size:8px;
-  border:1px solid var(--tama-edge); box-shadow:inset -1px -1px 0 rgba(0,0,0,.12);}
+  background:#fdeef6; color:var(--store-edge); font-size:8px;
+  border:1px solid var(--store-edge); box-shadow:inset -1px -1px 0 rgba(0,0,0,.12);}
 .gbD.up{top:0; left:21px;} .gbD.down{bottom:0; left:21px;}
 .gbD.left{left:0; top:21px;} .gbD.right{right:0; top:21px;}
 .gbD.mid{top:21px; left:21px; cursor:default;}
-.gbD:active{background:var(--tama-b); color:#fff;}
+.gbD:active{background:var(--store-b); color:#fff;}
 .gbBagBtn{position:relative; width:44px; height:44px; display:grid; place-items:center; cursor:pointer;}
 .gbBagBtn svg{width:36px; height:36px;}
 
 .gbBottom{flex:0 0 auto; display:flex; align-items:center; gap:8px;}
-.gbWallet{margin-left:auto; font:bold 11px "Courier New",monospace; color:var(--tama-edge);
-  background:#fff; padding:4px 10px; border:2px solid var(--tama-edge); border-radius:10px;}
+.gbWallet{margin-left:auto; font:bold 11px "Courier New",monospace; color:var(--store-edge);
+  background:#fff; padding:4px 10px; border:2px solid var(--store-edge); border-radius:10px;}
 
 /* ---- XP checkout dialog ---- */
 .xpDialog{margin:auto; width:100%; max-width:300px; background:var(--face);
@@ -458,6 +465,8 @@
 .sw{width:30px; height:22px; cursor:pointer;
   border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);}
 .sw.on{border-color:var(--shadow) var(--hi) var(--hi) var(--shadow); outline:1px dotted #000; outline-offset:2px;}
+.petSw{width:46px; height:36px; background:#e8e8e8; display:flex; align-items:center; justify-content:center; padding:2px;}
+.petSw svg{width:40px; height:30px;}
 .cpbtns{display:flex; justify-content:flex-end; gap:5px; margin:6px 2px 0;}
 .cbn{padding:4px 14px; font-size:11px; background:var(--face); cursor:pointer;
   border:2px solid; border-color:var(--hi) var(--dark) var(--dark) var(--hi);}
