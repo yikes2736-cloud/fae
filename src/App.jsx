@@ -980,7 +980,7 @@ const DEFAULT_THEME = {
 
 /* ---------- login / signup screen ---------- */
 function LoginScreen() {
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState("login"); // login | signup | forgot
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -990,6 +990,16 @@ function LoginScreen() {
   const submit = async (e) => {
     e.preventDefault();
     setError(""); setNotice(""); setBusy(true);
+
+    if (mode === "forgot") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      setBusy(false);
+      if (error) { setError(error.message); return; }
+      setNotice("Check your email for a password reset link.");
+      return;
+    }
 
     const { error } =
       mode === "login"
@@ -1001,23 +1011,73 @@ function LoginScreen() {
     if (mode === "signup") setNotice("Account created — check your email to confirm, then log in.");
   };
 
+  const title = mode === "login" ? "Log In" : mode === "signup" ? "Sign Up" : "Reset Password";
+
   return (
     <div className="authScreen">
       <form className="authWin" onSubmit={submit}>
-        <div className="authBar"><Ico id="i-fae" /><span>Fae — {mode === "login" ? "Log In" : "Sign Up"}</span></div>
+        <div className="authBar"><Ico id="i-fae" /><span>Fae — {title}</span></div>
         <div className="authBody">
           <input type="email" placeholder="Email" value={email}
                  onChange={(e) => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Password (min 6 characters)" value={password}
-                 onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          {mode !== "forgot" && (
+            <input type="password" placeholder="Password (min 6 characters)" value={password}
+                   onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          )}
           {error && <div className="authError">{error}</div>}
           {notice && <div className="authNotice">{notice}</div>}
           <button type="submit" disabled={busy}>
-            {busy ? "…" : mode === "login" ? "Log In" : "Create Account"}
+            {busy ? "…" : mode === "login" ? "Log In" : mode === "signup" ? "Create Account" : "Send Reset Link"}
           </button>
-          <div className="authSwitch" onClick={() => { setMode((m) => (m === "login" ? "signup" : "login")); setError(""); setNotice(""); }}>
-            {mode === "login" ? "New here? Create an account" : "Already have one? Log in"}
+
+          {mode === "login" && (
+            <div className="authSwitch" onClick={() => { setMode("forgot"); setError(""); setNotice(""); }}>
+              Forgot your password?
+            </div>
+          )}
+          <div className="authSwitch" onClick={() => {
+            setMode((m) => (m === "login" ? "signup" : "login")); setError(""); setNotice("");
+          }}>
+            {mode === "login" ? "New here? Create an account"
+              : mode === "signup" ? "Already have one? Log in"
+              : "Back to log in"}
           </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ---------- reset password (shown after clicking the email link) ---------- */
+function ResetPasswordScreen({ onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (password !== confirm) { setError("Passwords don't match."); return; }
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
+    if (error) { setError(error.message); return; }
+    onDone();
+  };
+
+  return (
+    <div className="authScreen">
+      <form className="authWin" onSubmit={submit}>
+        <div className="authBar"><Ico id="i-fae" /><span>Fae — Set New Password</span></div>
+        <div className="authBody">
+          <input type="password" placeholder="New password" value={password}
+                 onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          <input type="password" placeholder="Confirm new password" value={confirm}
+                 onChange={(e) => setConfirm(e.target.value)} required minLength={6} />
+          {error && <div className="authError">{error}</div>}
+          <button type="submit" disabled={busy}>{busy ? "…" : "Update Password"}</button>
         </div>
       </form>
     </div>
@@ -1975,17 +2035,22 @@ function Desktop({ session }) {
   );
 }
 
-/* ---------- top-level: decides Login vs Desktop ---------- */
+/* ---------- top-level: decides Login vs Desktop vs Password-Reset ---------- */
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
+  const [recovery, setRecovery] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
+    });
     return () => listener.subscription.unsubscribe();
   }, []);
 
   if (session === undefined) return <div className="authLoading">Loading Fae…</div>;
+  if (recovery) return <ResetPasswordScreen onDone={() => setRecovery(false)} />;
   if (!session) return <LoginScreen />;
   return <Desktop session={session} />;
 }
