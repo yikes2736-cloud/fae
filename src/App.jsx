@@ -8,6 +8,7 @@ import "./App.css";
 
 const taskPoints = (d) => 10 * d;
 const DIFFICULTY = { 1: "EASY ×1", 2: "MED ×2", 3: "HARD ×3" };
+const GOOGLE_CLIENT_ID = "687940403288-qppvpr11iv8usdvr385gaad0in34rk5a.apps.googleusercontent.com";
 const FREQ_ORDER = ["none", "once", "h1", "h2", "h3", "twice_daily", "daily"];
 const FREQ_LABEL = {
   none: "NO REMINDER",
@@ -1266,7 +1267,11 @@ function Desktop({ session }) {
   };
 
   const deleteTask = async (id) => {
-    setTasks((ts) => ts.filter((t) => t.id !== id));
+    const t = tasks.find((x) => x.id === id);
+    setTasks((ts) => ts.filter((x) => x.id !== id));
+    if (t?.google_event_id) {
+      supabase.functions.invoke("google-calendar", { body: { action: "delete", eventId: t.google_event_id } });
+    }
     await supabase.from("tasks").delete().eq("id", id);
   };
 
@@ -1535,6 +1540,92 @@ function Desktop({ session }) {
     };
   }, [tasks, loaded]);
 
+  // ---- Google Calendar ----
+  const [googleConnected, setGoogleConnected] = useState(false);
+
+  useEffect(() => {
+    supabase.functions.invoke("google-calendar", { body: { action: "status" } })
+      .then(({ data }) => setGoogleConnected(!!data?.connected))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (!code) return;
+    const returnedState = params.get("state");
+    const expectedState = sessionStorage.getItem("gcal_state");
+    sessionStorage.removeItem("gcal_state");
+    window.history.replaceState({}, "", window.location.pathname);
+
+    if (returnedState !== expectedState) {
+      setToast("Google connection failed — please try again.");
+      setTimeout(() => setToast(null), 3500);
+      return;
+    }
+    supabase.functions.invoke("google-calendar", {
+      body: { action: "connect", code, redirectUri: window.location.origin },
+    }).then(({ data, error }) => {
+      if (error || data?.error) {
+        setToast("Couldn't connect Google Calendar.");
+      } else {
+        setGoogleConnected(true);
+        setToast("Google Calendar connected!");
+      }
+      setTimeout(() => setToast(null), 3500);
+    });
+  }, []);
+
+  const connectGoogleCalendar = () => {
+    const state = Math.random().toString(36).slice(2);
+    sessionStorage.setItem("gcal_state", state);
+    const params = new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: window.location.origin,
+      response_type: "code",
+      scope: "https://www.googleapis.com/auth/calendar.events",
+      access_type: "offline",
+      prompt: "consent",
+      state,
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  };
+
+  const disconnectGoogleCalendar = async () => {
+    await supabase.functions.invoke("google-calendar", { body: { action: "disconnect" } });
+    setGoogleConnected(false);
+    setToast("Google Calendar disconnected.");
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const toggleTaskCalendarSync = async (task) => {
+    if (!googleConnected) {
+      setToast("Connect Google Calendar in Settings first.");
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+    if (task.calendar_sync) {
+      if (task.google_event_id) {
+        await supabase.functions.invoke("google-calendar", { body: { action: "delete", eventId: task.google_event_id } });
+      }
+      await supabase.from("tasks").update({ calendar_sync: false, google_event_id: null }).eq("id", task.id);
+      setTasks((ts) => ts.map((t) => (t.id === task.id ? { ...t, calendar_sync: false, google_event_id: null } : t)));
+    } else {
+      const { data, error } = await supabase.functions.invoke("google-calendar", {
+        body: { action: "sync", name: task.name, dueAt: task.due_at, eventId: task.google_event_id || null, leadMinutes: 30 },
+      });
+      if (error || data?.error) {
+        setToast("Couldn't sync to Google Calendar.");
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+      await supabase.from("tasks").update({ calendar_sync: true, google_event_id: data.eventId }).eq("id", task.id);
+      setTasks((ts) => ts.map((t) => (t.id === task.id ? { ...t, calendar_sync: true, google_event_id: data.eventId } : t)));
+      setToast("Synced to Google Calendar.");
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
   const close = (k) => setOpen((o) => ({ ...o, [k]: false }));
   const openWin = (k) => { setOpen((o) => ({ ...o, [k]: true })); focus(k); };
 
@@ -1601,9 +1692,16 @@ function Desktop({ session }) {
                     <div className="cb" onClick={() => toggleTask(t.id)}>{t.done ? "✓" : ""}</div>
                     <div className="name">{t.name}</div>
                     {t.due_at && (
-                      <div className={`dueTag ${!t.done && new Date(t.due_at).getTime() < Date.now() ? "over" : ""}`}>
-                        {new Date(t.due_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                      </div>
+                      <>
+                        <div className={`dueTag ${!t.done && new Date(t.due_at).getTime() < Date.now() ? "over" : ""}`}>
+                          {new Date(t.due_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                        </div>
+                        <div
+                          className={`calSync ${t.calendar_sync ? "on" : ""}`}
+                          title={t.calendar_sync ? "Synced to Google Calendar — tap to remove" : "Sync to Google Calendar"}
+                          onClick={() => toggleTaskCalendarSync(t)}
+                        >📅</div>
+                      </>
                     )}
                     <div className={`tag ${t.difficulty === 3 ? "hard" : ""}`}>{DIFFICULTY[t.difficulty]}</div>
                     <div className="pts">+{taskPoints(t.difficulty)}</div>
@@ -1781,7 +1879,7 @@ function Desktop({ session }) {
             z={zMap.cpl} focus={focus} onClose={() => close("cpl")}
           >
             <div className="tabs">
-              {["desktop", "windows", "pet", "store", "alerts"].map((t) => (
+              {["desktop", "windows", "pet", "store", "calendar", "alerts"].map((t) => (
                 <div key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
                   {t[0].toUpperCase() + t.slice(1)}
                 </div>
@@ -1919,6 +2017,24 @@ function Desktop({ session }) {
                            style={{ background: s.b }}
                            onClick={() => setTheme({ ...theme, storeShell: i })} />
                     ))}
+                  </div>
+                </fieldset>
+              )}
+
+              {tab === "calendar" && (
+                <fieldset>
+                  <legend>Google Calendar</legend>
+                  <div style={{ fontSize: 11, marginBottom: 8 }}>
+                    Status: <b>{googleConnected ? "Connected" : "Not connected"}</b>
+                  </div>
+                  {googleConnected ? (
+                    <div className="cbn" onClick={disconnectGoogleCalendar} style={{ display: "inline-block" }}>Disconnect</div>
+                  ) : (
+                    <div className="cbn" onClick={connectGoogleCalendar} style={{ display: "inline-block" }}>Connect Google Calendar</div>
+                  )}
+                  <div style={{ fontSize: 10, color: "#555", marginTop: 10, lineHeight: 1.5 }}>
+                    Once connected, tap the 📅 icon next to any task with a due date to add it to your real
+                    Google Calendar, with its own reminder 30 minutes before.
                   </div>
                 </fieldset>
               )}

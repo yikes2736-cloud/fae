@@ -106,6 +106,8 @@
 .taskAddDiff{font:bold 9px "MS Sans"; padding:4px 6px; background:var(--lcd); color:#0a0a0c; cursor:pointer; white-space:nowrap;}
 .dueTag{font-size:9px; padding:3px 5px; background:#2a2a33; color:#9adfc0; white-space:nowrap;}
 .dueTag.over{background:#5c1f1f; color:#ffb3b3;}
+.calSync{font-size:12px; cursor:pointer; opacity:.35; filter:grayscale(1);}
+.calSync.on{opacity:1; filter:none;}
 
 /* ---- retro due-date picker ---- */
 .ddp{display:flex; flex-direction:column; gap:4px; background:#101014; border:1px solid #444; padding:5px; flex:1 1 100%;}
